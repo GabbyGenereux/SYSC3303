@@ -6,7 +6,9 @@ import java.net.SocketException;
 import java.net.UnknownHostException;
 
 public class Client {
-
+	private byte[] readReq = {0, 1};
+	private byte[] writeReq = {0, 2};
+	
 	DatagramPacket sendPacket, recievePacket;
 	DatagramSocket sendAndRecieveSocket;
 
@@ -30,40 +32,15 @@ public class Client {
 	public void sendAndRecieve(String fileName, String mode) {
 		
 		//side of array determined by the length of the two strings, plus the 4 bytes added to the array
-		byte message[] = new byte[fileName.length() + mode.length() + 4];
-		byte zeroByte = 0;
-		byte oneByte = 1;
-		byte twoByte = 2;
+		byte message[];
 		//Repeat 10 times, alternating between read and write request
 		for (int j = 0; j < 10; j++) {
 			//read request
 			if (j % 2 == 0) {
-				message[0] = zeroByte;
-				message[1] = oneByte;
-				int i, k;
-				for (i = 2; i < fileName.length() + 2; i++) {
-					message[i] = (byte) fileName.charAt(i - 2);
-				}
-				message[i] = zeroByte;
-				i++;
-				for (k = 0; k < mode.length(); k++) {
-					message[i + k] = (byte) mode.charAt(k);
-				}
-				message[i + k] = zeroByte;
+				message = formatRequest(readReq, fileName, mode);
 			} else {
 				//write request
-				message[0] = zeroByte;
-				message[1] = twoByte;
-				int i, k;
-				for (i = 2; i < fileName.length() + 2; i++) {
-					message[i] = (byte) fileName.charAt(i - 2);
-				}
-				message[i] = zeroByte;
-				i++;
-				for (k = 0; k < mode.length(); k++) {
-					message[i + k] = (byte) mode.charAt(k);
-				}
-				message[i + k] = zeroByte;
+				message = formatRequest(writeReq, fileName, mode);
 			}
 			System.out.println("Client: Sending packet ");
 
@@ -122,18 +99,7 @@ public class Client {
 			}
 			System.out.println("\n");
 		}
-		message[0] = zeroByte;
-		message[1] = zeroByte;
-		int i, k;
-		for (i = 2; i < fileName.length() + 2; i++) {
-			message[i] = (byte) fileName.charAt(i - 2);
-		}
-		message[i] = zeroByte;
-		i++;
-		for (k = 0; k < mode.length(); k++) {
-			message[i + k] = (byte) mode.charAt(k);
-		}
-		message[i + k] = zeroByte;
+		message = new byte[] {1, 2, 3, 4, 5}; // incorrect formatting 
 		System.out.println("Client: Sending final packet.");
 
 		sendPacket.setData(message);
@@ -170,6 +136,32 @@ public class Client {
 
 	}
 
+	private byte[] formatRequest(byte[] reqType, String filename, String mode) {
+		byte[] request = new byte[reqType.length + filename.length() + mode.length() + 2]; // +2 for the zero byte after filename and after mode.
+		byte[] filenameData = filename.getBytes();
+		byte[] modeData = mode.toLowerCase().getBytes();
+		int i, j, k;
+		
+		for (i = 0; i < reqType.length; i++) {
+			request[i] = reqType[i];
+		}
+		
+		System.out.println(new String(request));
+
+		for (j = 0; j < filenameData.length; j++) {
+			request[i + j] = filenameData[j];
+		}
+		request[i + j] = 0; // zero byte after filename.
+		j++; 
+		for (k = 0; k < modeData.length; k++) {
+			request[i + j + k] = modeData[k];
+		}
+		
+		request[i + j + k] = 0; // final zero byte.
+
+		return request;
+	}
+	
 	public static void main(String args[]) {
 		Client c = new Client();
 		c.sendAndRecieve("file.txt", "octet");
