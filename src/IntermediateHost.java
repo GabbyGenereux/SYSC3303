@@ -7,14 +7,14 @@ import java.net.UnknownHostException;
 
 public class IntermediateHost {
 	
-	DatagramSocket recieveSocket, sendAndRecieveSocket;
-	DatagramPacket recievePacket, sendPacket;
+	DatagramSocket receiveSocket, sendAndReceiveSocket;
+	DatagramPacket receivePacket, sendPacket;
 	
 	public IntermediateHost()
 	{
 		try{
-			recieveSocket = new DatagramSocket(23);
-			sendAndRecieveSocket = new DatagramSocket();
+			receiveSocket = new DatagramSocket(23);
+			sendAndReceiveSocket = new DatagramSocket();
 		}catch(SocketException e)
 		{
 			e.printStackTrace();
@@ -22,46 +22,46 @@ public class IntermediateHost {
 		}
 	}
 	
-	public void recieveAndSend()
+	public void receiveAndSend()
 	{
 		while(true)
 		{
 			byte data[] = new byte[100];
-			recievePacket = new DatagramPacket(data, data.length);
+			receivePacket = new DatagramPacket(data, data.length);
 			System.out.println("Intermediate Host: waiting for packet..");
 			
 			try{
 				System.out.println("Waiting..");
-				recieveSocket.receive(recievePacket);
+				receiveSocket.receive(receivePacket);
 			}catch(IOException e)
 			{
-				System.out.print("IO Exception, likely recieve socket timeout");
+				System.out.print("IO Exception, likely receive socket timeout");
 				e.printStackTrace();
 				System.exit(1);
 			}
 			
-			byte[] data2 = new byte[recievePacket.getData().length];
-			System.arraycopy(data, recievePacket.getOffset(), data2, 0, recievePacket.getData().length);
+			byte[] data2 = new byte[receivePacket.getData().length];
+			System.arraycopy(data, receivePacket.getOffset(), data2, 0, receivePacket.getData().length);
 			
-			System.out.println("Intermediate Host: Packet recieved.");
-			System.out.println("From host: " + recievePacket.getAddress());
-			System.out.println("Host port: " + recievePacket.getPort());
-			int len = recievePacket.getLength();
+			System.out.println("Intermediate Host: Packet received.");
+			System.out.println("From host: " + receivePacket.getAddress());
+			System.out.println("Host port: " + receivePacket.getPort());
+			int len = receivePacket.getLength();
 			System.out.println("Length: "+ len);
 			System.out.print("Containing: ");
-			String recieved = new String(data2, 0, len);
-			System.out.println(recieved);
+			String received = new String(data2, 0, len);
+			System.out.println(received);
 			for(int k = 0; k < len; k++)
 			{
-				System.out.print(recievePacket.getData()[k] + " ");
+				System.out.print(receivePacket.getData()[k] + " ");
 			}
 			System.out.println("\n");
 			
-			InetAddress clientAddress = recievePacket.getAddress();
-			int clientPort = recievePacket.getPort();
+			InetAddress clientAddress = receivePacket.getAddress();
+			int clientPort = receivePacket.getPort();
 			
 			try {
-				sendPacket = new DatagramPacket(recievePacket.getData(), recievePacket.getLength(), InetAddress.getLocalHost(), 69);
+				sendPacket = new DatagramPacket(receivePacket.getData(), receivePacket.getLength(), InetAddress.getLocalHost(), 69);
 			} catch (UnknownHostException e1) {
 				e1.printStackTrace();
 				System.exit(1);
@@ -80,7 +80,7 @@ public class IntermediateHost {
 			}
 			System.out.println("\n");			
 			try{
-				sendAndRecieveSocket.send(sendPacket);
+				sendAndReceiveSocket.send(sendPacket);
 			}catch(IOException e)
 			{
 				e.printStackTrace();
@@ -91,35 +91,35 @@ public class IntermediateHost {
 			
 			System.out.println("Intermediate Host: Waiting for packet");
 			try{
-				sendAndRecieveSocket.receive(recievePacket);
+				sendAndReceiveSocket.receive(receivePacket);
 			}catch(IOException e)
 			{
-				System.out.print("IO Exception, likely recieve socket timeout");
+				System.out.print("IO Exception, likely receive socket timeout");
 				e.printStackTrace();
 				System.exit(1);
 			}
 			
-			System.out.println("Intermediate Host: Packet recieved.");
-			System.out.println("From host: " + recievePacket.getAddress());
-			System.out.println("Host port: " + recievePacket.getPort());
-			len = recievePacket.getLength();
+			System.out.println("Intermediate Host: Packet received.");
+			System.out.println("From host: " + receivePacket.getAddress());
+			System.out.println("Host port: " + receivePacket.getPort());
+			len = receivePacket.getLength();
 			System.out.println("Length: "+ len);
 			System.out.print("Containing: ");
 			
-			recieved = new String(data2, 0, len);
-			System.out.println(recieved);
+			received = new String(data2, 0, len);
+			System.out.println(received);
 			for(int k = 0; k < len; k++)
 			{
-				System.out.print(recievePacket.getData()[k] + " ");
+				System.out.print(receivePacket.getData()[k] + " ");
 			}
 			System.out.println("\n");
 			
-			sendPacket.setData(recievePacket.getData());
-			sendPacket.setLength(recievePacket.getLength());
+			sendPacket.setData(receivePacket.getData());
+			sendPacket.setLength(receivePacket.getLength());
 			sendPacket.setAddress(clientAddress);
 			sendPacket.setPort(clientPort);
 			try{
-				recieveSocket.send(sendPacket);
+				receiveSocket.send(sendPacket);
 			}catch(IOException e)
 			{
 				e.printStackTrace();
@@ -133,7 +133,7 @@ public class IntermediateHost {
 	public static void main(String args[])
 	{
 		IntermediateHost host = new IntermediateHost();
-		host.recieveAndSend();
+		host.receiveAndSend();
 	}
 
 }

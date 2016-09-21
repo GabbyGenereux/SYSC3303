@@ -5,8 +5,8 @@ import java.net.SocketException;
 
 public class Server {
 
-	DatagramSocket sendSocket, recieveSocket;
-	DatagramPacket recievePacket, sendPacket;
+	DatagramSocket sendSocket, receiveSocket;
+	DatagramPacket receivePacket, sendPacket;
 	
 	/*
 	 * Constructor
@@ -15,7 +15,7 @@ public class Server {
 	public Server()
 	{
 		try{
-			recieveSocket = new DatagramSocket(69);
+			receiveSocket = new DatagramSocket(69);
 		}catch(SocketException e)
 		{
 			e.printStackTrace();
@@ -23,9 +23,9 @@ public class Server {
 		}
 	}
 	/*
-	 * void recieveAndSend
+	 * void receiveAndSend
 	 */
-	public void recieveAndSend()
+	public void receiveAndSend()
 	{
 		byte data[] = new byte[100];
 		byte data2[];
@@ -39,33 +39,33 @@ public class Server {
 		while(true)
 		{
 			//create packet to receive
-			recievePacket = new DatagramPacket(data, data.length);
+			receivePacket = new DatagramPacket(data, data.length);
 			System.out.println("Server: Waiting for packet..");
 			
 			//receive packet
 			try{
 				System.out.println("Waiting...");
-				recieveSocket.receive(recievePacket);
+				receiveSocket.receive(receivePacket);
 			}catch(IOException e)
 			{
-				System.out.println("IO Exception: Likely recieve socket timeout");
+				System.out.println("IO Exception: Likely receive socket timeout");
 				e.printStackTrace();
 				System.exit(1);
 			}
 			
-			data2 = new byte[recievePacket.getLength()];
-			System.arraycopy(recievePacket.getData(), recievePacket.getOffset(), data2, 0, recievePacket.getLength());
+			data2 = new byte[receivePacket.getLength()];
+			System.arraycopy(receivePacket.getData(), receivePacket.getOffset(), data2, 0, receivePacket.getLength());
 			//Print information from received packet
-			System.out.println("Server: Packet recieved.");
-			System.out.println("From host: " + recievePacket.getAddress());
-			System.out.println("Host port: " + recievePacket.getPort());
-			int len = recievePacket.getLength();
+			System.out.println("Server: Packet received.");
+			System.out.println("From host: " + receivePacket.getAddress());
+			System.out.println("Host port: " + receivePacket.getPort());
+			int len = receivePacket.getLength();
 			System.out.println("Length: "+ len);
 			System.out.print("Containing: ");
 			System.out.println(new String(data2, 0, len));
 			for(int k = 0; k < len; k++)
 			{
-				System.out.print(recievePacket.getData()[k] + " ");
+				System.out.print(receivePacket.getData()[k] + " ");
 			}
 			System.out.println("\n");
 			
@@ -127,7 +127,7 @@ public class Server {
 			}
 			
 			//Create new send packet
-			sendPacket = new DatagramPacket(sendData, sendData.length, recievePacket.getAddress(), recievePacket.getPort());
+			sendPacket = new DatagramPacket(sendData, sendData.length, receivePacket.getAddress(), receivePacket.getPort());
 			//Print information being sent out
 			System.out.println("Server: Sending packet");
 			System.out.println("To host: " + sendPacket.getAddress());
@@ -167,7 +167,7 @@ public class Server {
 	public static void main(String args[])
 	{
 		Server s = new Server();
-		s.recieveAndSend();
+		s.receiveAndSend();
 	}
 	
 }

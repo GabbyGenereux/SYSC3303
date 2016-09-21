@@ -9,8 +9,8 @@ public class Client {
 	private byte[] readReq = {0, 1};
 	private byte[] writeReq = {0, 2};
 	
-	DatagramPacket sendPacket, recievePacket;
-	DatagramSocket sendAndRecieveSocket;
+	DatagramPacket sendPacket, receivePacket;
+	DatagramSocket sendAndReceiveSocket;
 
 	/*
 	 * Constructor
@@ -18,18 +18,19 @@ public class Client {
 	 */
 	public Client() {
 		try {
-			sendAndRecieveSocket = new DatagramSocket();
+			sendAndReceiveSocket = new DatagramSocket();
 		} catch (SocketException e) {
 			e.printStackTrace();
 			System.exit(1);
 		}
 	}
 
-	/*
-	 * void sendAndRecieve
-	 * Para - Strings representing the file name and the mode
+	/**
+	 * 
+	 * @param fileName
+	 * @param mode
 	 */
-	public void sendAndRecieve(String fileName, String mode) {
+	public void sendAndReceive(String fileName, String mode) {
 		
 		//side of array determined by the length of the two strings, plus the 4 bytes added to the array
 		byte message[];
@@ -65,7 +66,7 @@ public class Client {
 			System.out.println("\n");
 			//send packet
 			try {
-				sendAndRecieveSocket.send(sendPacket);
+				sendAndReceiveSocket.send(sendPacket);
 			} catch (IOException e) {
 				e.printStackTrace();
 				System.exit(1);
@@ -76,26 +77,26 @@ public class Client {
 			System.out.println("Client: Waiting for packet..");
 
 			byte data[] = new byte[4];
-			recievePacket = new DatagramPacket(data, data.length, sendPacket.getAddress(), sendPacket.getPort());
+			receivePacket = new DatagramPacket(data, data.length, sendPacket.getAddress(), sendPacket.getPort());
 			//Receive packet
 			try {
-				sendAndRecieveSocket.receive(recievePacket);
+				sendAndReceiveSocket.receive(receivePacket);
 			} catch (IOException e) {
 				e.printStackTrace();
 				System.exit(1);
 			}
 			//print received packet information
-			System.out.println("Client: Packet recieved");
-			System.out.println("From host: " + recievePacket.getAddress());
-			System.out.println("Host port: " + recievePacket.getPort());
-			len = recievePacket.getLength();
+			System.out.println("Client: Packet received");
+			System.out.println("From host: " + receivePacket.getAddress());
+			System.out.println("Host port: " + receivePacket.getPort());
+			len = receivePacket.getLength();
 			System.out.println("Length: " + len);
 			System.out.print("Containing: ");
-			String recieved = new String(data, 0, len);
-			System.out.println(recieved);
-			for(int k = 0; k < recievePacket.getData().length; k++)
+			String received = new String(data, 0, len);
+			System.out.println(received);
+			for(int k = 0; k < receivePacket.getData().length; k++)
 			{
-				System.out.print(recievePacket.getData()[k] + " ");
+				System.out.print(receivePacket.getData()[k] + " ");
 			}
 			System.out.println("\n");
 		}
@@ -125,17 +126,23 @@ public class Client {
 		System.out.println("\n");
 		//send packet
 		try {
-			sendAndRecieveSocket.send(sendPacket);
+			sendAndReceiveSocket.send(sendPacket);
 		} catch (IOException e) {
 			e.printStackTrace();
 			System.exit(1);
 		}
 
 		System.out.println("Client: Packet sent.");
-		sendAndRecieveSocket.close();
+		sendAndReceiveSocket.close();
 
 	}
-
+	/**
+	 * 
+	 * @param reqType
+	 * @param filename
+	 * @param mode
+	 * @return
+	 */
 	private byte[] formatRequest(byte[] reqType, String filename, String mode) {
 		byte[] request = new byte[reqType.length + filename.length() + mode.length() + 2]; // +2 for the zero byte after filename and after mode.
 		byte[] filenameData = filename.getBytes();
@@ -145,8 +152,6 @@ public class Client {
 		for (i = 0; i < reqType.length; i++) {
 			request[i] = reqType[i];
 		}
-		
-		System.out.println(new String(request));
 
 		for (j = 0; j < filenameData.length; j++) {
 			request[i + j] = filenameData[j];
@@ -164,7 +169,7 @@ public class Client {
 	
 	public static void main(String args[]) {
 		Client c = new Client();
-		c.sendAndRecieve("file.txt", "octet");
+		c.sendAndReceive("file.txt", "octet");
 	}
 
 }
