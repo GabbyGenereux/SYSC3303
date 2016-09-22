@@ -4,10 +4,13 @@ import java.net.DatagramSocket;
 import java.net.InetAddress;
 import java.net.SocketException;
 import java.net.UnknownHostException;
+import java.util.Arrays;
 
 public class Client {
 	private byte[] readReq = {0, 1};
 	private byte[] writeReq = {0, 2};
+	private boolean testMode = false;
+	private int wellKnownPort;
 	
 	DatagramPacket sendPacket, receivePacket;
 	DatagramSocket sendAndReceiveSocket;
@@ -23,8 +26,121 @@ public class Client {
 			e.printStackTrace();
 			System.exit(1);
 		}
+		if (testMode) wellKnownPort = 23;
+		else wellKnownPort = 69;	
 	}
 
+	void sendRequest(byte[] reqType, String filename, String mode) throws UnknownHostException {
+		byte[] message = formatRequest(reqType, filename, mode);
+		
+		DatagramPacket requestPacket = new DatagramPacket(message, message.length, InetAddress.getLocalHost(), wellKnownPort);
+		
+		try {
+			sendAndReceiveSocket.send(requestPacket);
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+	}
+	
+	void readFromServer(String filename, String mode) throws IOException{
+		System.out.println("Initiating read request with file " + filename);
+		
+		sendRequest(readReq, filename, mode);
+		byte[] receivedData;
+		int currentBlockNumber = 1;
+		while (true) {
+			receivedData = new byte[2 + 2 + 512]; // opcode + blockNumber + 512 bytes of data
+			receivePacket = new DatagramPacket(receivedData, receivedData.length);
+			System.out.println("Waiting for block of data...");
+			// receive block
+			sendAndReceiveSocket.receive(receivePacket);
+			
+			// validate packet
+			receivedData = Arrays.copyOf(receivePacket.getData(), receivePacket.getLength());
+
+			int blockNum = getBlockNumberInt(receivedData);
+			System.out.println("Received block of data, Block#: " + blockNum);
+			
+			if (blockNum != currentBlockNumber) {
+				continue; // Ignore? Do something else? Maybe need to reconsider.
+			}
+			// There might be a more efficient method than this.
+			byte[] dataBlock = Arrays.copyOfRange(receivedData, 4, receivedData.length); // 4 is where the data starts, after opcode + blockNumber
+			// TODO: write dataBlock to file
+			
+			System.out.println("Sending Ack...");
+			// Send ack back
+			byte[] ack = createAck(blockNum);
+			// Initial request was sent to wellKnownPort, but steady state file transfer should happen on another port.
+			sendPacket = new DatagramPacket(ack, ack.length, InetAddress.getLocalHost(), receivePacket.getPort());
+		
+			sendAndReceiveSocket.send(sendPacket);
+			currentBlockNumber++;
+			
+			// check if block is < 512 bytes which signifies end of file
+			if (dataBlock.length < 512) { // Magic number? Consider using a constant for this.
+				System.out.println("Data was received that was less than 512 bytes in length");
+				System.out.println("Total transfers that took place: " + blockNum);
+				break; 
+			}
+		}
+	}
+	
+	byte[] createAck(int blockNum) {
+		byte[] ack = new byte[4];
+		ack[0] = 0; //
+		ack[1] = 4; // Opcode
+		byte[] bn = convertBlockNumberByteArr(blockNum);
+		ack[2] = bn[0];
+		ack[3] = bn[1];
+		
+		return ack;
+	}
+	
+	void writeToServer(String filename, String mode) throws IOException {
+		sendRequest(writeReq, filename, mode);
+		int currentBlockNum = 0;
+		while (true) {
+			// receive ACK from previous dataBlock
+			byte[] data = new byte[4];
+			receivePacket = new DatagramPacket(data, data.length);
+			sendAndReceiveSocket.receive(receivePacket);
+			// need block number
+			int blockNum = getBlockNumberInt(receivePacket.getData());
+			if (blockNum != currentBlockNum) continue;
+			
+			// increment block number then send that block
+			currentBlockNum++;
+			
+			
+			//TODO read next dataBlock from file
+			byte[] dataBlock = new byte[512];
+			
+			
+			byte[] sendData = formatData(dataBlock, blockNum);
+			// Initial request was sent to wellKnownPort, but steady state file transfer should happen on another port.
+			sendPacket = new DatagramPacket(sendData, sendData.length, InetAddress.getLocalHost(), receivePacket.getPort());
+			sendAndReceiveSocket.send(sendPacket);			
+		}
+	}
+	
+	
+	private int getBlockNumberInt(byte[] data) {
+		int blockNum;
+		// Check opcodes
+		
+		// Big Endian 
+		blockNum = data[2];
+		blockNum <<= 8;
+		blockNum += data[3];
+		
+		return blockNum;
+	}
+	private byte[] convertBlockNumberByteArr(int blockNumber) {
+		return new byte[] {(byte)((blockNumber >> 8) & 0xFF), (byte)(blockNumber & 0xFF)};
+	}
+	
 	/**
 	 * 
 	 * @param fileName
@@ -167,9 +283,35 @@ public class Client {
 		return request;
 	}
 	
+byte[] formatData(byte[] data, int blockNumber) {
+		
+		byte[] formatted = new byte[data.length + 4]; // +4 for opcode and datablock number (2 bytes each)
+		byte[] blockNumData = convertBlockNumberByteArr(blockNumber);
+		int i;
+		
+		// opcode
+		formatted[0] = 0;
+		formatted[1] = 3;
+		// blockNumber
+		formatted[2] = blockNumData[0];
+		formatted[3] = blockNumData[1];
+		
+		for (i = 0; i < data.length; i++) {
+			formatted[i + 4] = data[i];
+		}
+
+		return formatted;
+	}
+	
 	public static void main(String args[]) {
 		Client c = new Client();
-		c.sendAndReceive("file.txt", "octet");
+		try {
+			c.readFromServer("test.txt", "octet");
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		//c.sendAndReceive("file.txt", "octet");
 	}
 
 }
