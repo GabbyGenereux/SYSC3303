@@ -26,7 +26,7 @@ public class IntermediateHost {
 	{
 		while(true)
 		{
-			byte data[] = new byte[100];
+			byte data[] = new byte[1000];
 			receivePacket = new DatagramPacket(data, data.length);
 			System.out.println("Intermediate Host: waiting for packet..");
 			
