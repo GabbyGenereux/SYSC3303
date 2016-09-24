@@ -2,11 +2,12 @@ import java.io.IOException;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.SocketException;
+import java.util.Arrays;
 
 
 public class ServerThread extends Thread{
 	DatagramPacket receivePacket, sendPacket;
-	DatagramSocket sendSocket;
+	DatagramSocket sendSocket, sendReceiveSocket;
 	byte[] data;
 	
 	public ServerThread(String name, DatagramPacket receivedPacket, byte[] receivedData){
@@ -67,6 +68,7 @@ public class ServerThread extends Thread{
 		//Create new message depending on whether the packet was a read or write request
 		if(data[1] == oneByte)
 		{
+			//read request
 			sendData[0] = zeroByte;
 			sendData[1] = threeByte;
 			sendData[2] = zeroByte;
@@ -74,6 +76,7 @@ public class ServerThread extends Thread{
 		}
 		else if(data[1] == twoByte)
 		{
+			//write request
 			sendData[0] = zeroByte;
 			sendData[1] = fourByte;
 			sendData[2] = zeroByte;
@@ -122,5 +125,161 @@ public class ServerThread extends Thread{
 		System.out.println(name + ": packet sent");
 		
 		sendSocket.close();
+	}
+	
+	private byte[] convertBlockNumberByteArr(int blockNumber) 
+	{
+		return new byte[] {(byte)((blockNumber >> 8) & 0xFF), (byte)(blockNumber & 0xFF)};
+	}
+	
+	//send the file from the server to the client, given the filename (for a client's read request)
+	//should be called after the initial request has been read
+	void writeToClient(String filename)
+	{
+		//Create socket to send out packets and receive ACKs
+		try 
+		{
+			sendReceiveSocket = new DatagramSocket();
+		} 
+		catch (SocketException e1) 
+		{
+			e1.printStackTrace();
+			System.exit(1);
+		}
+		
+		int blockNumber = 1; //starting with the first block of 512 bytes
+		byte[] data;
+		while(true)
+		{
+			data = new byte[516]; //2 bytes for opcode, 2 bytes for block number, 512 bytes for data
+			byte[] block = convertBlockNumberByteArr(blockNumber); //convert the integer block number to big endian word
+
+			data[0] = 0;
+			data[1] = 4; //ACK opcode
+			data[2] = block[0];
+			data[3] = block[1]; //block number
+			
+			//TODO fill the other 512 bytes of data from the file being read
+			
+			//send the data to the client
+			sendPacket = new DatagramPacket(data, data.length, receivePacket.getAddress(), receivePacket.getPort());
+			try
+			{
+				sendReceiveSocket.send(sendPacket);
+			}
+			catch (IOException e)
+			{
+				e.printStackTrace();
+				System.exit(1);
+			}
+			
+			//receive the ACK from the client
+			byte[] ack = new byte[4];
+			receivePacket = new DatagramPacket(ack, ack.length);
+			try
+			{
+				sendReceiveSocket.receive(receivePacket);
+			}
+			catch (IOException e)
+			{
+				e.printStackTrace();
+				System.exit(1);
+			}
+			
+			//TODO break the loop here when the file has been fully transferred
+			
+			//get ready to send the next block of bytes
+			blockNumber++;
+		}
+	}
+	
+	//write the bytes from a client to a file on the server, given filename (for write requests)
+	//should be called after the initial request has been read
+	void readFromClient(String filename)
+	{
+		//Create socket to send out ACKs and receive packets
+		try 
+		{
+			sendReceiveSocket = new DatagramSocket(receivePacket.getPort());
+		} 
+		catch (SocketException e1) 
+		{
+			e1.printStackTrace();
+			System.exit(1);
+		}
+		
+		int blockNumber = 0;
+		byte[] receivedData;
+		DatagramPacket transferFromClient;
+		byte[] block;
+		byte[] ack = new byte[4];
+		
+		ack[0] = 0;
+		ack[1] = 4; //ACK opcode
+		while(true)
+		{
+			receivedData = new byte[516]; //2 bytes for opcode, 2 bytes for block number and 512 bytes for data
+			transferFromClient = new DatagramPacket(receivedData, receivedData.length);
+
+			block = convertBlockNumberByteArr(blockNumber); //convert the integer block number to big endian word
+			
+			data[2] = block[0];
+			data[3] = block[1]; //block number
+			
+			sendPacket = new DatagramPacket(data, data.length, receivePacket.getAddress(), receivePacket.getPort());
+			
+			//send the ACK to the client
+			try
+			{
+				sendReceiveSocket.send(sendPacket);
+			}
+			catch (IOException e)
+			{
+				e.printStackTrace();
+				System.exit(1);
+			}
+			
+			//wait to receive the packet of data
+			try
+			{
+				sendReceiveSocket.receive(transferFromClient);
+			}
+			catch (IOException e)
+			{
+				e.printStackTrace();
+				System.exit(1);
+			}
+			
+			//received the packet full of data, copy just the data (index 4-515)
+			byte[] data = Arrays.copyOfRange(receivedData, 4, receivedData.length);
+			
+			//TODO write the 512 bytes of data to the file
+			
+			//check if the data received was less than 512 bytes
+			//if so, the last packet has been received and the thread should not loop back to receive more packets
+			if(data.length < 512)
+				break;
+			
+			blockNumber++; //increment the block number and loop back to send the ack, then receive another packet
+		}
+		//send the ACK for the last packet
+		block = convertBlockNumberByteArr(blockNumber); //convert the integer block number to big endian word
+		
+		data[2] = block[0];
+		data[3] = block[1]; //block number
+		sendPacket = new DatagramPacket(data, data.length, receivePacket.getAddress(), receivePacket.getPort());
+		
+		//send the ACK to the client
+		try
+		{
+			sendReceiveSocket.send(sendPacket);
+		}
+		catch (IOException e)
+		{
+			e.printStackTrace();
+			System.exit(1);
+		}
+		
+		sendReceiveSocket.close();
 	}
 }
