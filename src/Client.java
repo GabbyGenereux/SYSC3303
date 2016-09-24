@@ -1,3 +1,7 @@
+import java.io.BufferedInputStream;
+import java.io.BufferedOutputStream;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
@@ -5,6 +9,7 @@ import java.net.InetAddress;
 import java.net.SocketException;
 import java.net.UnknownHostException;
 import java.util.Arrays;
+import java.util.Scanner;
 
 public class Client {
 	private byte[] readReq = {0, 1};
@@ -38,7 +43,6 @@ public class Client {
 		try {
 			sendAndReceiveSocket.send(requestPacket);
 		} catch (IOException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
 	}
@@ -68,6 +72,9 @@ public class Client {
 			// There might be a more efficient method than this.
 			byte[] dataBlock = Arrays.copyOfRange(receivedData, 4, receivedData.length); // 4 is where the data starts, after opcode + blockNumber
 			// TODO: write dataBlock to file
+			BufferedOutputStream out = new BufferedOutputStream(new FileOutputStream(filename));
+			
+			out.write(dataBlock, 0, dataBlock.length);
 			
 			System.out.println("Sending Ack...");
 			// Send ack back
@@ -113,10 +120,10 @@ public class Client {
 			// increment block number then send that block
 			currentBlockNum++;
 			
-			
-			//TODO read next dataBlock from file
 			byte[] dataBlock = new byte[512];
 			
+			BufferedInputStream in = new BufferedInputStream(new FileInputStream(filename));
+			in.read(dataBlock, 0, dataBlock.length);
 			
 			byte[] sendData = formatData(dataBlock, blockNum);
 			// Initial request was sent to wellKnownPort, but steady state file transfer should happen on another port.
@@ -316,14 +323,16 @@ byte[] formatData(byte[] data, int blockNumber) {
 	}
 	
 	public static void main(String args[]) {
+		System.out.println("Hello! Please type which mode to run in; normal or test:");
+		Scanner s = new Scanner(System.in);
+		String mode = s.nextLine();
+		System.out.println("Now choose whether you would like to run in quiet or verbose mode:");
+		String response = s.nextLine();
+		System.out.println("Please enter in the file name:");
+		String fileName = s.nextLine();
 		Client c = new Client();
-		try {
-			c.readFromServer("test.txt", "octet");
-		} catch (IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
-		//c.sendAndReceive("file.txt", "octet");
+		//TODO: Need to figure out what to do with quiet/verbose mode and normal/test mode
+		c.sendAndReceive(fileName, "octet");
 	}
 
 }
