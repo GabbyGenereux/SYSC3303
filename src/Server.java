@@ -22,11 +22,10 @@ public class Server {
 			System.exit(1);
 		}
 	}
-	//shutdown the server process
-	private void shutdown()
+	//stop the server process
+	private void stop()
 	{
 		receiveSocket.close();
-		System.exit(1);
 	}
 	/*
 	 * void receiveAndSend
@@ -37,6 +36,7 @@ public class Server {
 		byte data2[];
 		int threadCounter = 1;
 		
+		//once user input is added, the server operator can choose to shutdown
 		while(run)
 		{
 			//create packet to receive
@@ -76,7 +76,7 @@ public class Server {
 			System.out.println("Server: Created " + serverThread);
 			serverThread.start();
 		}
-		shutdown();
+		stop();
 	}
 	public static void main(String args[])
 	{
