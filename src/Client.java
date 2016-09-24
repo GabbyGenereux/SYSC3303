@@ -11,7 +11,7 @@ public class Client {
 	private byte[] writeReq = {0, 2};
 	private boolean testMode = false;
 	private int wellKnownPort;
-	
+	private boolean exit;
 	DatagramPacket sendPacket, receivePacket;
 	DatagramSocket sendAndReceiveSocket;
 
@@ -141,6 +141,11 @@ public class Client {
 		return new byte[] {(byte)((blockNumber >> 8) & 0xFF), (byte)(blockNumber & 0xFF)};
 	}
 	
+	private void shutdown() {
+		sendAndReceiveSocket.close();
+		System.exit(1);
+	}
+	
 	/**
 	 * 
 	 * @param fileName
@@ -151,7 +156,12 @@ public class Client {
 		//side of array determined by the length of the two strings, plus the 4 bytes added to the array
 		byte message[];
 		//Repeat 10 times, alternating between read and write request
-		for (int j = 0; j < 10; j++) {
+		//for (int j = 0; j < 10; j++) {
+		
+		//j preserves the old functionality, however to shut down the exit var must be set to true.
+		//Once user input is added, the user can choose when to shutdown rather than just using j>=10
+		int j = 0;
+		while(!exit) {
 			//read request
 			if (j % 2 == 0) {
 				message = formatRequest(readReq, fileName, mode);
@@ -215,6 +225,9 @@ public class Client {
 				System.out.print(receivePacket.getData()[k] + " ");
 			}
 			System.out.println("\n");
+			j++;
+			if (j >= 10)
+				exit = true;
 		}
 		message = new byte[] {1, 2, 3, 4, 5}; // incorrect formatting 
 		System.out.println("Client: Sending final packet.");
@@ -249,8 +262,7 @@ public class Client {
 		}
 
 		System.out.println("Client: Packet sent.");
-		sendAndReceiveSocket.close();
-
+		shutdown();
 	}
 	/**
 	 * 
