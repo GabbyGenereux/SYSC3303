@@ -7,7 +7,7 @@ public class Server {
 
 	DatagramSocket sendSocket, receiveSocket;
 	DatagramPacket receivePacket, sendPacket;
-	
+	boolean run = true;
 	/*
 	 * Constructor
 	 * Creates new receive socket
@@ -22,6 +22,12 @@ public class Server {
 			System.exit(1);
 		}
 	}
+	//shutdown the server process
+	private void shutdown()
+	{
+		receiveSocket.close();
+		System.exit(1);
+	}
 	/*
 	 * void receiveAndSend
 	 */
@@ -31,7 +37,7 @@ public class Server {
 		byte data2[];
 		int threadCounter = 1;
 		
-		while(true)
+		while(run)
 		{
 			//create packet to receive
 			receivePacket = new DatagramPacket(data, data.length);
@@ -70,7 +76,7 @@ public class Server {
 			System.out.println("Server: Created " + serverThread);
 			serverThread.start();
 		}
-		
+		shutdown();
 	}
 	public static void main(String args[])
 	{
