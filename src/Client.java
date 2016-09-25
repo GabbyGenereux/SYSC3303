@@ -20,6 +20,15 @@ public class Client {
 	DatagramPacket sendPacket, receivePacket;
 	DatagramSocket sendAndReceiveSocket;
 
+	public boolean isTestMode() {
+		return testMode;
+	}
+
+	public void setTestMode(boolean testMode) {
+		this.testMode = testMode;
+	}
+
+	
 	/*
 	 * Constructor
 	 * Initializes the Datagram Socket
@@ -35,7 +44,7 @@ public class Client {
 		else wellKnownPort = 69;	
 	}
 
-	void sendRequest(byte[] reqType, String filename, String mode) throws UnknownHostException {
+	private void sendRequest(byte[] reqType, String filename, String mode) throws UnknownHostException {
 		byte[] message = formatRequest(reqType, filename, mode);
 		
 		DatagramPacket requestPacket = new DatagramPacket(message, message.length, InetAddress.getLocalHost(), wellKnownPort);
@@ -47,7 +56,7 @@ public class Client {
 		}
 	}
 	
-	void readFromServer(String filename, String mode) throws IOException{
+	public void readFromServer(String filename, String mode) throws IOException{
 		System.out.println("Initiating read request with file " + filename);
 		
 		sendRequest(readReq, filename, mode);
@@ -94,7 +103,7 @@ public class Client {
 		}
 	}
 	
-	byte[] createAck(int blockNum) {
+	private byte[] createAck(int blockNum) {
 		byte[] ack = new byte[4];
 		ack[0] = 0; //
 		ack[1] = 4; // Opcode
@@ -105,7 +114,7 @@ public class Client {
 		return ack;
 	}
 	
-	void writeToServer(String filename, String mode) throws IOException {
+	public void writeToServer(String filename, String mode) throws IOException {
 		sendRequest(writeReq, filename, mode);
 		int currentBlockNum = 0;
 		while (true) {
@@ -153,124 +162,7 @@ public class Client {
 		System.exit(1);
 	}
 	
-	/**
-	 * 
-	 * @param fileName
-	 * @param mode
-	 */
-	public void sendAndReceive(String fileName, String mode) {
-		
-		//side of array determined by the length of the two strings, plus the 4 bytes added to the array
-		byte message[];
-		//Repeat 10 times, alternating between read and write request
-		//for (int j = 0; j < 10; j++) {
-		
-		//j preserves the old functionality, however to shut down the exit var must be set to true.
-		//Once user input is added, the user can choose when to shutdown rather than just using j>=10
-		int j = 0;
-		while(!exit) {
-			//read request
-			if (j % 2 == 0) {
-				message = formatRequest(readReq, fileName, mode);
-			} else {
-				//write request
-				message = formatRequest(writeReq, fileName, mode);
-			}
-			System.out.println("Client: Sending packet ");
-
-			//create Datagram packet to send
-			try {
-				sendPacket = new DatagramPacket(message, message.length, InetAddress.getLocalHost(), 23);
-			} catch (UnknownHostException e) {
-				e.printStackTrace();
-				System.exit(1);
-			}
-			//Print out packet information
-			System.out.println("to host: " + sendPacket.getAddress());
-			System.out.println("Destination host port: " + sendPacket.getPort());
-			int len = sendPacket.getLength();
-			System.out.println("Length: " + len);
-			System.out.print("Containing: ");
-			System.out.println(new String(sendPacket.getData(), 0, len));			
-			for(int k = 0; k < sendPacket.getData().length; k++)
-			{
-				System.out.print(sendPacket.getData()[k] + " ");
-			}
-			System.out.println("\n");
-			//send packet
-			try {
-				sendAndReceiveSocket.send(sendPacket);
-			} catch (IOException e) {
-				e.printStackTrace();
-				System.exit(1);
-			}
-
-			System.out.println("Client: Packet sent.");
-			
-			System.out.println("Client: Waiting for packet..");
-
-			byte data[] = new byte[4];
-			receivePacket = new DatagramPacket(data, data.length, sendPacket.getAddress(), sendPacket.getPort());
-			//Receive packet
-			try {
-				sendAndReceiveSocket.receive(receivePacket);
-			} catch (IOException e) {
-				e.printStackTrace();
-				System.exit(1);
-			}
-			//print received packet information
-			System.out.println("Client: Packet received");
-			System.out.println("From host: " + receivePacket.getAddress());
-			System.out.println("Host port: " + receivePacket.getPort());
-			len = receivePacket.getLength();
-			System.out.println("Length: " + len);
-			System.out.print("Containing: ");
-			String received = new String(data, 0, len);
-			System.out.println(received);
-			for(int k = 0; k < receivePacket.getData().length; k++)
-			{
-				System.out.print(receivePacket.getData()[k] + " ");
-			}
-			System.out.println("\n");
-			j++;
-			if (j >= 10)
-				exit = true;
-		}
-		message = new byte[] {1, 2, 3, 4, 5}; // incorrect formatting 
-		System.out.println("Client: Sending final packet.");
-
-		sendPacket.setData(message);
-		sendPacket.setLength(message.length);
-		try {
-			sendPacket.setAddress(InetAddress.getLocalHost());
-		} catch (UnknownHostException e1) {
-			e1.printStackTrace();
-			System.exit(1);
-		}
-		sendPacket.setPort(23);
-		//Print out packet information
-		System.out.println("to host: " + sendPacket.getAddress());
-		System.out.println("Destination host port: " + sendPacket.getPort());
-		int len = sendPacket.getLength();
-		System.out.println("Length: " + len);
-		System.out.print("Containing: ");
-		System.out.println(new String(sendPacket.getData(), 0, len));			
-		for(int l = 0; l < sendPacket.getData().length; l++)
-		{
-			System.out.print(sendPacket.getData()[l] + " ");
-		}
-		System.out.println("\n");
-		//send packet
-		try {
-			sendAndReceiveSocket.send(sendPacket);
-		} catch (IOException e) {
-			e.printStackTrace();
-			System.exit(1);
-		}
-
-		System.out.println("Client: Packet sent.");
-		shutdown();
-	}
+	
 	/**
 	 * 
 	 * @param reqType
@@ -302,7 +194,7 @@ public class Client {
 		return request;
 	}
 	
-byte[] formatData(byte[] data, int blockNumber) {
+	private byte[] formatData(byte[] data, int blockNumber) {
 		
 		byte[] formatted = new byte[data.length + 4]; // +4 for opcode and datablock number (2 bytes each)
 		byte[] blockNumData = convertBlockNumberByteArr(blockNumber);
@@ -323,16 +215,46 @@ byte[] formatData(byte[] data, int blockNumber) {
 	}
 	
 	public static void main(String args[]) {
-		System.out.println("Hello! Please type which mode to run in; normal or test:");
+		Client c = new Client();
+		
+		System.out.println("Hello! Please type which mode to run in; normal or test: (n/t)");
 		Scanner s = new Scanner(System.in);
-		String mode = s.nextLine();
+		String mode = s.nextLine().toLowerCase();
+		
+		if (mode.equals("n") || mode.equals("normal")) {
+			c.setTestMode(false);
+		}
+		else if (mode.equals("t") || mode.equals("test")) {
+			c.setTestMode(true);
+		}
+		
 		System.out.println("Now choose whether you would like to run in quiet or verbose mode:");
 		String response = s.nextLine();
-		System.out.println("Please enter in the file name:");
-		String fileName = s.nextLine();
-		Client c = new Client();
-		//TODO: Need to figure out what to do with quiet/verbose mode and normal/test mode
-		c.sendAndReceive(fileName, "octet");
+		
+		while (true) {
+			System.out.println("Please enter in the file name:");
+			String fileName = s.nextLine();
+			
+			System.out.println("Read or Write? (r/w)");
+			String action = s.nextLine().toLowerCase();
+			
+			try {
+				if (action.equals("r") || action.equals("read")) {
+					c.readFromServer(fileName, mode);
+					System.out.println("Transfer complete");
+				}
+				else if (action.equals("w") || action.equals("write")) {
+					c.writeToServer(fileName, mode);
+					System.out.println("Transfer complete");
+				}
+				else {
+					System.out.println("Invalid command");
+				}
+			}
+			catch (IOException e) {
+				e.printStackTrace();
+			}
+		}
 	}
 
 }
