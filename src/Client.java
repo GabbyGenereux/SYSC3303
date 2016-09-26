@@ -62,6 +62,9 @@ public class Client {
 		sendRequest(readReq, filename, mode);
 		byte[] receivedData;
 		int currentBlockNumber = 1;
+		
+		BufferedOutputStream out = new BufferedOutputStream(new FileOutputStream(filename));
+		
 		while (true) {
 			receivedData = new byte[2 + 2 + 512]; // opcode + blockNumber + 512 bytes of data
 			receivePacket = new DatagramPacket(receivedData, receivedData.length);
@@ -80,17 +83,17 @@ public class Client {
 			}
 			// There might be a more efficient method than this.
 			byte[] dataBlock = Arrays.copyOfRange(receivedData, 4, receivedData.length); // 4 is where the data starts, after opcode + blockNumber
-			// TODO: write dataBlock to file
-			BufferedOutputStream out = new BufferedOutputStream(new FileOutputStream(filename));
 			
-			out.write(dataBlock, 0, dataBlock.length);
+			
+			// Write dataBlock to file
+			out.write(dataBlock);
 			
 			System.out.println("Sending Ack...");
 			// Send ack back
 			byte[] ack = createAck(blockNum);
+			
 			// Initial request was sent to wellKnownPort, but steady state file transfer should happen on another port.
 			sendPacket = new DatagramPacket(ack, ack.length, InetAddress.getLocalHost(), receivePacket.getPort());
-		
 			sendAndReceiveSocket.send(sendPacket);
 			currentBlockNumber++;
 			
@@ -101,6 +104,7 @@ public class Client {
 				break; 
 			}
 		}
+		out.close();
 	}
 	
 	private byte[] createAck(int blockNum) {
@@ -117,6 +121,9 @@ public class Client {
 	public void writeToServer(String filename, String mode) throws IOException {
 		sendRequest(writeReq, filename, mode);
 		int currentBlockNum = 0;
+		
+		BufferedInputStream in = new BufferedInputStream(new FileInputStream(filename));
+		
 		while (true) {
 			// receive ACK from previous dataBlock
 			byte[] data = new byte[4];
@@ -131,14 +138,19 @@ public class Client {
 			
 			byte[] dataBlock = new byte[512];
 			
-			BufferedInputStream in = new BufferedInputStream(new FileInputStream(filename));
-			in.read(dataBlock, 0, dataBlock.length);
+			// Resize dataBlock to total bytes read
+			int bytesRead = in.read(dataBlock);
+			
+			if (bytesRead == -1) break;
+			dataBlock = Arrays.copyOf(dataBlock, bytesRead);
 			
 			byte[] sendData = formatData(dataBlock, blockNum);
 			// Initial request was sent to wellKnownPort, but steady state file transfer should happen on another port.
 			sendPacket = new DatagramPacket(sendData, sendData.length, InetAddress.getLocalHost(), receivePacket.getPort());
-			sendAndReceiveSocket.send(sendPacket);			
+			sendAndReceiveSocket.send(sendPacket);	
 		}
+		
+		in.close();
 	}
 	
 	
