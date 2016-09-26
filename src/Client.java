@@ -129,11 +129,15 @@ public class Client {
 			// receive ACK from previous dataBlock
 			byte[] data = new byte[4];
 			receivePacket = new DatagramPacket(data, data.length);
+			System.out.println("Client is waiting to receive ACK from server");
 			sendAndReceiveSocket.receive(receivePacket);
 			TFTPInfoPrinter.printReceived(receivePacket);
 			// need block number
 			int blockNum = getBlockNumberInt(receivePacket.getData());
-			if (blockNum != currentBlockNum) continue;
+			if (blockNum != currentBlockNum) {
+				System.out.println("&&&&&&" + blockNum + "   " + currentBlockNum);
+				continue;
+			}
 			
 			// increment block number then send that block
 			currentBlockNum++;

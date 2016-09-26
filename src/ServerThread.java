@@ -6,6 +6,7 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
+import java.net.InetAddress;
 import java.net.SocketException;
 import java.util.Arrays;
 
@@ -225,7 +226,7 @@ public class ServerThread extends Thread{
 		in.close();
 	}
 	
-	//write the bytes from a client to a file on the server, given filename (for write requests)
+	/*//write the bytes from a client to a file on the server, given filename (for write requests)
 	//should be called after the initial request has been read
 	void readFromClient(String filename) throws IOException
 	{
@@ -314,5 +315,80 @@ public class ServerThread extends Thread{
 		}
 		
 		sendReceiveSocket.close();
+	}*/
+	
+	public void readFromClient(String filename) throws IOException{
+		System.out.println("Reading from client: " + filename);
+	
+		// Already received request
+		// Send ACK with blockNumber 0 ... N;
+		// Receive dataBlock (blockNumber++)
+		byte[] receivedData;
+		int currentBlockNumber = 0;
+		
+		BufferedOutputStream out = new BufferedOutputStream(new FileOutputStream(filename));
+		sendReceiveSocket = new DatagramSocket();
+		while (true) {
+			
+			System.out.println("Sending Ack...");
+			// Send ack back
+			byte[] ack = createAck(currentBlockNumber);
+			
+			// Initial request was sent to wellKnownPort, but steady state file transfer should happen on another port.
+			sendPacket = new DatagramPacket(ack, ack.length, InetAddress.getLocalHost(), receivePacket.getPort());
+			sendReceiveSocket.send(sendPacket);
+			TFTPInfoPrinter.printSent(sendPacket);
+			currentBlockNumber++;
+			
+			receivedData = new byte[2 + 2 + 512]; // opcode + blockNumber + 512 bytes of data
+			receivePacket = new DatagramPacket(receivedData, receivedData.length);
+			System.out.println("Waiting for block of data...");
+			// receive block
+			sendReceiveSocket.receive(receivePacket);
+			TFTPInfoPrinter.printReceived(receivePacket);
+			
+			// validate packet
+			receivedData = Arrays.copyOf(receivePacket.getData(), receivePacket.getLength());
+
+			int blockNum = getBlockNumberInt(receivedData);
+			System.out.println("Received block of data, Block#: " + blockNum);
+			
+			// There might be a more efficient method than this.
+			byte[] dataBlock = Arrays.copyOfRange(receivedData, 4, receivedData.length); // 4 is where the data starts, after opcode + blockNumber
+			
+			// Write dataBlock to file
+			out.write(dataBlock);
+			
+			
+			
+			// check if block is < 512 bytes which signifies end of file
+			if (dataBlock.length < 512) { // Magic number? Consider using a constant for this.
+				break; 
+			}
+		}
+		out.close();
+		sendReceiveSocket.close();
+	}
+	private int getBlockNumberInt(byte[] data) {
+		int blockNum;
+		// Check opcodes
+		
+		// Big Endian 
+		blockNum = data[2];
+		blockNum <<= 8;
+		blockNum += data[3];
+		
+		return blockNum;
+	}
+	
+	private byte[] createAck(int blockNum) {
+		byte[] ack = new byte[4];
+		ack[0] = 0; //
+		ack[1] = 4; // Opcode
+		byte[] bn = convertBlockNumberByteArr(blockNum);
+		ack[2] = bn[0];
+		ack[3] = bn[1];
+		
+		return ack;
 	}
 }
