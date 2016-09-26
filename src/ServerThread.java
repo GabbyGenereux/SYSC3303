@@ -13,12 +13,21 @@ import java.util.Arrays;
 public class ServerThread extends Thread{
 	DatagramPacket receivePacket, sendPacket;
 	DatagramSocket sendSocket, sendReceiveSocket;
+	String file;
 	byte[] data;
 	
 	public ServerThread(String name, DatagramPacket receivedPacket, byte[] receivedData){
 		super(name);
 		receivePacket = receivedPacket;
 		data = receivedData;
+		StringBuilder sb = new StringBuilder();
+		int i = 0;
+		while(data[i+2] != 0x00) {
+			sb.append((char)data[i+2]);
+			i++;
+		}
+		file = sb.toString();
+		
 	}
 	
 	public void run(){
@@ -28,6 +37,8 @@ public class ServerThread extends Thread{
 		byte twoByte = 2;
 		byte threeByte = 3;
 		byte fourByte = 4;
+		
+		System.out.println("*****" + file);
 		
 		//Check if packet is valid
 		int i;
@@ -78,6 +89,11 @@ public class ServerThread extends Thread{
 			sendData[1] = threeByte;
 			sendData[2] = zeroByte;
 			sendData[3] = oneByte;
+			try {
+				writeToClient(file);
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
 		}
 		else if(data[1] == twoByte)
 		{
@@ -86,8 +102,13 @@ public class ServerThread extends Thread{
 			sendData[1] = fourByte;
 			sendData[2] = zeroByte;
 			sendData[3] = zeroByte;
+			try {
+				readFromClient(file);
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
 		}
-		
+		/*
 		//Create new send packet
 		sendPacket = new DatagramPacket(sendData, sendData.length, receivePacket.getAddress(), receivePacket.getPort());
 		//Print information being sent out
@@ -114,9 +135,9 @@ public class ServerThread extends Thread{
 		}
 		
 		//temporary slowdown for testing purposes
-		/*try{
+		try{
 			Thread.sleep(1000);
-		}catch(InterruptedException e){}*/
+		}catch(InterruptedException e){}
 		
 		//Send packet on newly created socket
 		try{
@@ -130,6 +151,7 @@ public class ServerThread extends Thread{
 		System.out.println(name + ": packet sent");
 		
 		sendSocket.close();
+		*/
 	}
 	
 	private byte[] convertBlockNumberByteArr(int blockNumber) 
@@ -166,10 +188,13 @@ public class ServerThread extends Thread{
 			data[3] = block[1]; //block number
 
 			int bytesRead = in.read(dataBlock);
+			if (bytesRead == -1) bytesRead = 0; 
+			System.out.println("Bytes read: " + bytesRead);
 			System.arraycopy(dataBlock, 0, data, 4, bytesRead);
 			
+			
 			//send the data to the client
-			sendPacket = new DatagramPacket(data, data.length, receivePacket.getAddress(), receivePacket.getPort());
+			sendPacket = new DatagramPacket(data, bytesRead + 4, receivePacket.getAddress(), receivePacket.getPort());
 			try
 			{
 				sendReceiveSocket.send(sendPacket);
@@ -193,7 +218,7 @@ public class ServerThread extends Thread{
 				System.exit(1);
 			}
 			
-			if (bytesRead == -1) break;
+			if (bytesRead < 512) break;
 			//get ready to send the next block of bytes
 			blockNumber++;
 		}
@@ -208,7 +233,7 @@ public class ServerThread extends Thread{
 		//Create socket to send out ACKs and receive packets
 		try 
 		{
-			sendReceiveSocket = new DatagramSocket(receivePacket.getPort());
+			sendReceiveSocket = new DatagramSocket();
 		} 
 		catch (SocketException e1) 
 		{
@@ -217,7 +242,7 @@ public class ServerThread extends Thread{
 		}
 		
 		int blockNumber = 0;
-		byte[] receivedData;
+		byte[] receivingBytes;
 		DatagramPacket transferFromClient;
 		byte[] block;
 		byte[] ack = new byte[4];
@@ -226,15 +251,15 @@ public class ServerThread extends Thread{
 		ack[1] = 4; //ACK opcode
 		while(true)
 		{
-			receivedData = new byte[516]; //2 bytes for opcode, 2 bytes for block number and 512 bytes for data
-			transferFromClient = new DatagramPacket(receivedData, receivedData.length);
+			receivingBytes = new byte[516]; //2 bytes for opcode, 2 bytes for block number and 512 bytes for data
+			transferFromClient = new DatagramPacket(receivingBytes, receivingBytes.length);
 
 			block = convertBlockNumberByteArr(blockNumber); //convert the integer block number to big endian word
 			
-			data[2] = block[0];
-			data[3] = block[1]; //block number
+			ack[2] = block[0];
+			ack[3] = block[1]; //block number
 			
-			sendPacket = new DatagramPacket(data, data.length, receivePacket.getAddress(), receivePacket.getPort());
+			sendPacket = new DatagramPacket(ack, ack.length, receivePacket.getAddress(), receivePacket.getPort());
 			
 			//send the ACK to the client
 			try
@@ -259,13 +284,13 @@ public class ServerThread extends Thread{
 			}
 			
 			//received the packet full of data, copy just the data (index 4-515)
-			byte[] data = Arrays.copyOfRange(receivedData, 4, receivedData.length);
+			byte[] writeToFile = Arrays.copyOfRange(receivingBytes, 4, receivingBytes.length);
 			
-			out.write(data);
+			out.write(writeToFile);
 			
 			//check if the data received was less than 512 bytes
 			//if so, the last packet has been received and the thread should not loop back to receive more packets
-			if(data.length < 512)
+			if(writeToFile.length < 512)
 				break;
 			
 			blockNumber++; //increment the block number and loop back to send the ack, then receive another packet

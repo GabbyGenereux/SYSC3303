@@ -71,6 +71,7 @@ public class Client {
 			System.out.println("Waiting for block of data...");
 			// receive block
 			sendAndReceiveSocket.receive(receivePacket);
+			TFTPInfoPrinter.printReceived(receivePacket);
 			
 			// validate packet
 			receivedData = Arrays.copyOf(receivePacket.getData(), receivePacket.getLength());
@@ -94,6 +95,7 @@ public class Client {
 			// Initial request was sent to wellKnownPort, but steady state file transfer should happen on another port.
 			sendPacket = new DatagramPacket(ack, ack.length, InetAddress.getLocalHost(), receivePacket.getPort());
 			sendAndReceiveSocket.send(sendPacket);
+			TFTPInfoPrinter.printSent(sendPacket);
 			currentBlockNumber++;
 			
 			// check if block is < 512 bytes which signifies end of file
@@ -128,6 +130,7 @@ public class Client {
 			byte[] data = new byte[4];
 			receivePacket = new DatagramPacket(data, data.length);
 			sendAndReceiveSocket.receive(receivePacket);
+			TFTPInfoPrinter.printReceived(receivePacket);
 			// need block number
 			int blockNum = getBlockNumberInt(receivePacket.getData());
 			if (blockNum != currentBlockNum) continue;
@@ -139,14 +142,17 @@ public class Client {
 			
 			// Resize dataBlock to total bytes read
 			int bytesRead = in.read(dataBlock);
-			
+			if (bytesRead == -1) bytesRead = 0;
 			dataBlock = Arrays.copyOf(dataBlock, bytesRead);
 			
-			byte[] sendData = formatData(dataBlock, blockNum);
+			byte[] sendData = formatData(dataBlock, currentBlockNum);
 			// Initial request was sent to wellKnownPort, but steady state file transfer should happen on another port.
 			sendPacket = new DatagramPacket(sendData, sendData.length, InetAddress.getLocalHost(), receivePacket.getPort());
-			sendAndReceiveSocket.send(sendPacket);	
-			if (bytesRead == -1) break;
+			sendAndReceiveSocket.send(sendPacket);
+			
+			TFTPInfoPrinter.printSent(sendPacket);
+			
+			if (bytesRead < 512) break;
 		}
 		
 		in.close();
