@@ -1,3 +1,8 @@
+import java.io.BufferedInputStream;
+import java.io.BufferedOutputStream;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
@@ -134,7 +139,7 @@ public class ServerThread extends Thread{
 	
 	//send the file from the server to the client, given the filename (for a client's read request)
 	//should be called after the initial request has been read
-	void writeToClient(String filename)
+	void writeToClient(String filename) throws IOException
 	{
 		//Create socket to send out packets and receive ACKs
 		try 
@@ -149,17 +154,19 @@ public class ServerThread extends Thread{
 		
 		int blockNumber = 1; //starting with the first block of 512 bytes
 		byte[] data;
+		BufferedInputStream in = new BufferedInputStream(new FileInputStream(filename));
 		while(true)
 		{
 			data = new byte[516]; //2 bytes for opcode, 2 bytes for block number, 512 bytes for data
 			byte[] block = convertBlockNumberByteArr(blockNumber); //convert the integer block number to big endian word
-
+			byte[] dataBlock = new byte[512];
 			data[0] = 0;
 			data[1] = 4; //ACK opcode
 			data[2] = block[0];
 			data[3] = block[1]; //block number
-			
-			//TODO fill the other 512 bytes of data from the file being read
+
+			int bytesRead = in.read(dataBlock);
+			System.arraycopy(dataBlock, 0, data, 4, bytesRead);
 			
 			//send the data to the client
 			sendPacket = new DatagramPacket(data, data.length, receivePacket.getAddress(), receivePacket.getPort());
@@ -186,17 +193,18 @@ public class ServerThread extends Thread{
 				System.exit(1);
 			}
 			
-			//TODO break the loop here when the file has been fully transferred
-			
+			if (bytesRead == -1) break;
 			//get ready to send the next block of bytes
 			blockNumber++;
 		}
+		in.close();
 	}
 	
 	//write the bytes from a client to a file on the server, given filename (for write requests)
 	//should be called after the initial request has been read
-	void readFromClient(String filename)
+	void readFromClient(String filename) throws IOException
 	{
+		BufferedOutputStream out = new BufferedOutputStream(new FileOutputStream(filename));
 		//Create socket to send out ACKs and receive packets
 		try 
 		{
@@ -253,7 +261,7 @@ public class ServerThread extends Thread{
 			//received the packet full of data, copy just the data (index 4-515)
 			byte[] data = Arrays.copyOfRange(receivedData, 4, receivedData.length);
 			
-			//TODO write the 512 bytes of data to the file
+			out.write(data);
 			
 			//check if the data received was less than 512 bytes
 			//if so, the last packet has been received and the thread should not loop back to receive more packets

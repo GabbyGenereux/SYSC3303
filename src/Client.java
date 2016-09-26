@@ -84,7 +84,6 @@ public class Client {
 			// There might be a more efficient method than this.
 			byte[] dataBlock = Arrays.copyOfRange(receivedData, 4, receivedData.length); // 4 is where the data starts, after opcode + blockNumber
 			
-			
 			// Write dataBlock to file
 			out.write(dataBlock);
 			
@@ -141,13 +140,13 @@ public class Client {
 			// Resize dataBlock to total bytes read
 			int bytesRead = in.read(dataBlock);
 			
-			if (bytesRead == -1) break;
 			dataBlock = Arrays.copyOf(dataBlock, bytesRead);
 			
 			byte[] sendData = formatData(dataBlock, blockNum);
 			// Initial request was sent to wellKnownPort, but steady state file transfer should happen on another port.
 			sendPacket = new DatagramPacket(sendData, sendData.length, InetAddress.getLocalHost(), receivePacket.getPort());
 			sendAndReceiveSocket.send(sendPacket);	
+			if (bytesRead == -1) break;
 		}
 		
 		in.close();
