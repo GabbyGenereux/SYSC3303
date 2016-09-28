@@ -25,6 +25,8 @@ public class Client {
 	}
 
 	public void setTestMode(boolean testMode) {
+		if (testMode) wellKnownPort = 23;
+		else wellKnownPort = 69;
 		this.testMode = testMode;
 	}
 
@@ -39,9 +41,7 @@ public class Client {
 		} catch (SocketException e) {
 			e.printStackTrace();
 			System.exit(1);
-		}
-		if (testMode) wellKnownPort = 23;
-		else wellKnownPort = 69;	
+		}	
 	}
 
 	private void sendRequest(byte[] reqType, String filename, String mode) throws UnknownHostException {
@@ -171,7 +171,7 @@ public class Client {
 		blockNum = data[2];
 		blockNum <<= 8;
 		blockNum += data[3];
-		
+		// 
 		return blockNum;
 	}
 	private byte[] convertBlockNumberByteArr(int blockNumber) {
