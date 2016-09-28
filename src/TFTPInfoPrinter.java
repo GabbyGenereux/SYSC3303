@@ -16,7 +16,7 @@ public class TFTPInfoPrinter {
 		if (verboseMode) {
 			byte[] data = receivePacket.getData();
 			
-			System.out.println("Intermediate Host: Packet received.");
+			System.out.println("Packet received.");
 			System.out.println("From host: " + receivePacket.getAddress());
 			System.out.println("Host port: " + receivePacket.getPort());
 			int len = receivePacket.getLength();

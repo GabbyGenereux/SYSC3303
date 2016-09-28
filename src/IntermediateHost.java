@@ -43,19 +43,7 @@ public class IntermediateHost {
 			byte[] data2 = new byte[receivePacket.getData().length];
 			System.arraycopy(data, receivePacket.getOffset(), data2, 0, receivePacket.getData().length);
 			
-			System.out.println("Intermediate Host: Packet received.");
-			System.out.println("From host: " + receivePacket.getAddress());
-			System.out.println("Host port: " + receivePacket.getPort());
-			int len = receivePacket.getLength();
-			System.out.println("Length: "+ len);
-			System.out.print("Containing: ");
-			String received = new String(data2, 0, len);
-			System.out.println(received);
-			for(int k = 0; k < len; k++)
-			{
-				System.out.print(receivePacket.getData()[k] + " ");
-			}
-			System.out.println("\n");
+			TFTPInfoPrinter.printReceived(receivePacket);
 			
 			InetAddress clientAddress = receivePacket.getAddress();
 			int clientPort = receivePacket.getPort();
@@ -67,18 +55,7 @@ public class IntermediateHost {
 				System.exit(1);
 			}
 			
-			System.out.println("Intermediate Host: Sending packet");
-			System.out.println("To host: " + sendPacket.getAddress());
-			System.out.println("Destination host port: " + sendPacket.getPort());
-			len = sendPacket.getLength();
-			System.out.println("Length: " + len);
-			System.out.print("Containing: ");
-			System.out.println("String: " + new String(sendPacket.getData(), 0, len));
-			for(int k = 0; k < len; k++)
-			{
-				System.out.print(sendPacket.getData()[k] + " ");
-			}
-			System.out.println("\n");			
+				
 			try{
 				sendAndReceiveSocket.send(sendPacket);
 			}catch(IOException e)
@@ -86,6 +63,7 @@ public class IntermediateHost {
 				e.printStackTrace();
 				System.exit(1);
 			}
+			TFTPInfoPrinter.printSent(sendPacket);	
 			
 			System.out.println("Intermediate Host: packet sent");
 			
@@ -99,20 +77,7 @@ public class IntermediateHost {
 				System.exit(1);
 			}
 			
-			System.out.println("Intermediate Host: Packet received.");
-			System.out.println("From host: " + receivePacket.getAddress());
-			System.out.println("Host port: " + receivePacket.getPort());
-			len = receivePacket.getLength();
-			System.out.println("Length: "+ len);
-			System.out.print("Containing: ");
-			
-			received = new String(data2, 0, len);
-			System.out.println(received);
-			for(int k = 0; k < len; k++)
-			{
-				System.out.print(receivePacket.getData()[k] + " ");
-			}
-			System.out.println("\n");
+			TFTPInfoPrinter.printReceived(receivePacket);
 			
 			sendPacket.setData(receivePacket.getData());
 			sendPacket.setLength(receivePacket.getLength());

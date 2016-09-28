@@ -57,17 +57,7 @@ public class Server {
 			data2 = new byte[receivePacket.getLength()];
 			System.arraycopy(receivePacket.getData(), receivePacket.getOffset(), data2, 0, receivePacket.getLength());
 			//Print information from received packet
-			System.out.println("Server: Packet received.");
-			System.out.println("From host: " + receivePacket.getAddress());
-			System.out.println("Host port: " + receivePacket.getPort());
-			int len = receivePacket.getLength();
-			System.out.println("Length: "+ len);
-			System.out.print("Containing: ");
-			System.out.println(new String(data2, 0, len));
-			for(int k = 0; k < len; k++)
-			{
-				System.out.print(receivePacket.getData()[k] + " ");
-			}
+			TFTPInfoPrinter.printReceived(receivePacket);
 			System.out.println("\n");
 			
 			//create and run new Server thread
