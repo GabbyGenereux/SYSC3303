@@ -4,6 +4,7 @@ import java.net.DatagramSocket;
 import java.net.InetAddress;
 import java.net.SocketException;
 import java.net.UnknownHostException;
+import java.util.Arrays;
 
 public class IntermediateHost {
 	
@@ -24,38 +25,41 @@ public class IntermediateHost {
 	
 	public void receiveAndSend()
 	{
+		int clientPort, serverPort = 69;
 		while(true)
 		{
-			byte data[] = new byte[1000];
+			byte data[] = new byte[516];
+			
+			// Receive from client
 			receivePacket = new DatagramPacket(data, data.length);
 			System.out.println("Intermediate Host: waiting for packet..");
 			
 			try{
 				System.out.println("Waiting..");
 				receiveSocket.receive(receivePacket);
+				
 			}catch(IOException e)
 			{
 				System.out.print("IO Exception, likely receive socket timeout");
 				e.printStackTrace();
 				System.exit(1);
 			}
+			// End receive from client
 			
-			byte[] data2 = new byte[receivePacket.getData().length];
-			System.arraycopy(data, receivePacket.getOffset(), data2, 0, receivePacket.getData().length);
+			// Send to Server
+			byte[] data2 = Arrays.copyOf(receivePacket.getData(),  receivePacket.getLength());
 			
 			TFTPInfoPrinter.printReceived(receivePacket);
 			
 			InetAddress clientAddress = receivePacket.getAddress();
-			int clientPort = receivePacket.getPort();
+			clientPort = receivePacket.getPort();
 			
 			try {
-				sendPacket = new DatagramPacket(receivePacket.getData(), receivePacket.getLength(), InetAddress.getLocalHost(), 69);
+				sendPacket = new DatagramPacket(data2, data2.length, InetAddress.getLocalHost(), serverPort);
 			} catch (UnknownHostException e1) {
 				e1.printStackTrace();
 				System.exit(1);
 			}
-			
-				
 			try{
 				sendAndReceiveSocket.send(sendPacket);
 			}catch(IOException e)
@@ -65,8 +69,9 @@ public class IntermediateHost {
 			}
 			TFTPInfoPrinter.printSent(sendPacket);	
 			
-			System.out.println("Intermediate Host: packet sent");
+			// End send to server
 			
+			// Receive from Server
 			System.out.println("Intermediate Host: Waiting for packet");
 			try{
 				sendAndReceiveSocket.receive(receivePacket);
@@ -76,9 +81,12 @@ public class IntermediateHost {
 				e.printStackTrace();
 				System.exit(1);
 			}
+			serverPort = receivePacket.getPort();
 			
 			TFTPInfoPrinter.printReceived(receivePacket);
+			// End receive from Server
 			
+			// Send to Client
 			sendPacket.setData(receivePacket.getData());
 			sendPacket.setLength(receivePacket.getLength());
 			sendPacket.setAddress(clientAddress);
@@ -93,12 +101,14 @@ public class IntermediateHost {
 			
 			System.out.println("Intermediate Host: Packet sent");
 		}
+		// End send to Client
 		
 	}
+	
 	public static void main(String args[])
 	{
 		IntermediateHost host = new IntermediateHost();
+	
 		host.receiveAndSend();
 	}
-
 }
