@@ -2,6 +2,7 @@ import java.io.IOException;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.SocketException;
+import java.net.SocketTimeoutException;
 
 public class Server {
 
@@ -21,11 +22,25 @@ public class Server {
 			e.printStackTrace();
 			System.exit(1);
 		}
+		try {
+			receiveSocket.setSoTimeout(1000);
+		} catch (SocketException e1) {
+			e1.printStackTrace();
+			System.exit(1);
+		}
 	}
 	//stop the server process
-	private void stop()
+	public void stop()
+	{
+		run = false;
+	}
+	
+	private void shutdown()
 	{
 		receiveSocket.close();
+		System.out.println("Socket closed, server will no longer accept requests");
+		while(true){} //keep the process open to allow existing transfers to finish
+		//unsure if the above line is required (only needed if Java would close threads along with the process)
 	}
 	/*
 	 * void receiveAndSend
@@ -35,21 +50,26 @@ public class Server {
 		byte data[] = new byte[100];
 		byte data2[];
 		int threadCounter = 1;
-		
+		ServerInput waitForExitCommand = new ServerInput("Input Handler", this);
+		waitForExitCommand.start();
 		//once user input is added, the server operator can choose to shutdown
 		while(run)
 		{
 			//create packet to receive
 			receivePacket = new DatagramPacket(data, data.length);
 			System.out.println("Server: Waiting for packet..");
-			
 			//receive packet
-			try{
+			try
+			{
 				System.out.println("Waiting...");
 				receiveSocket.receive(receivePacket);
-			}catch(IOException e)
+			}
+			catch(SocketTimeoutException e)
 			{
-				System.out.println("IO Exception: Likely receive socket timeout");
+				continue;
+			} 
+			catch (IOException e) 
+			{
 				e.printStackTrace();
 				System.exit(1);
 			}
@@ -66,7 +86,7 @@ public class Server {
 			System.out.println("Server: Created " + serverThread);
 			serverThread.start();
 		}
-		stop();
+		shutdown();
 	}
 	public static void main(String args[])
 	{

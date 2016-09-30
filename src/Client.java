@@ -16,7 +16,6 @@ public class Client {
 	private byte[] writeReq = {0, 2};
 	private boolean testMode = false;
 	private int wellKnownPort;
-	private boolean exit;
 	DatagramPacket sendPacket, receivePacket;
 	DatagramSocket sendAndReceiveSocket;
 
@@ -178,7 +177,7 @@ public class Client {
 		return new byte[] {(byte)((blockNumber >> 8) & 0xFF), (byte)(blockNumber & 0xFF)};
 	}
 	
-	private void shutdown() {
+	public void shutdown() {
 		sendAndReceiveSocket.close();
 		System.exit(1);
 	}
@@ -253,8 +252,9 @@ public class Client {
 		String response = s.nextLine();
 		
 		while (true) {
-			System.out.println("Please enter in the file name:");
+			System.out.println("Please enter in the file name (or \"shutdown\" to exit):");
 			String fileName = s.nextLine();
+			if (fileName.equals("shutdown")) break;
 			
 			System.out.println("Read or Write? (r/w)");
 			String action = s.nextLine().toLowerCase();
@@ -276,6 +276,8 @@ public class Client {
 				e.printStackTrace();
 			}
 		}
+		s.close();
+		c.shutdown();
 	}
 
 }
