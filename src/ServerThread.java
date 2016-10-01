@@ -229,7 +229,7 @@ public class ServerThread extends Thread{
 			
 			
 			// check if block is < 512 bytes which signifies end of file
-			if (dataBlock.length < 512) { // Magic number? Consider using a constant for this.
+			if (dataBlock.length < 512) {
 				break; 
 			}
 		}
