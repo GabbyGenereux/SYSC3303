@@ -79,9 +79,8 @@ public class Client {
 			System.out.println("Received block of data, Block#: " + blockNum);
 			
 			if (blockNum != currentBlockNumber) {
-				continue; // Ignore? Do something else? Maybe need to reconsider.
+				continue; 
 			}
-			// There might be a more efficient method than this.
 			byte[] dataBlock = Arrays.copyOfRange(receivedData, 4, receivedData.length); // 4 is where the data starts, after opcode + blockNumber
 			
 			// Write dataBlock to file
@@ -98,7 +97,7 @@ public class Client {
 			currentBlockNumber++;
 			
 			// check if block is < 512 bytes which signifies end of file
-			if (dataBlock.length < 512) { // Magic number? Consider using a constant for this.
+			if (dataBlock.length < 512) { 
 				System.out.println("Data was received that was less than 512 bytes in length");
 				System.out.println("Total transfers that took place: " + blockNum);
 				break; 
