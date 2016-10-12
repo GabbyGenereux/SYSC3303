@@ -3,6 +3,7 @@ import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.SocketException;
 import java.net.SocketTimeoutException;
+import java.util.Scanner;
 
 public class Server {
 
@@ -52,15 +53,15 @@ public class Server {
 		ServerInput waitForExitCommand = new ServerInput("Input Handler", this);
 		waitForExitCommand.start();
 		//once user input is added, the server operator can choose to shutdown
+		System.out.println("Server: Waiting for packet..");
 		while(run)
 		{
 			//create packet to receive
 			receivePacket = new DatagramPacket(data, data.length);
-			System.out.println("Server: Waiting for packet..");
+			
 			//receive packet
 			try
 			{
-				System.out.println("Waiting...");
 				receiveSocket.receive(receivePacket);
 			}
 			catch(SocketTimeoutException e)
@@ -78,6 +79,7 @@ public class Server {
 			//Print information from received packet
 			TFTPInfoPrinter.printReceived(receivePacket);
 			System.out.println("\n");
+
 			
 			//create and run new Server thread
 			Thread serverThread = new ServerThread("Server Thread #" + threadCounter,receivePacket,data2);
@@ -89,8 +91,18 @@ public class Server {
 	}
 	public static void main(String args[])
 	{
-		Server s = new Server();
-		s.receiveAndSend();
+		System.out.println("Choose whether you would like to run in quiet or verbose mode (q/v):");
+		Scanner s = new Scanner(System.in);
+		String response = s.nextLine();
+		
+		if (response.equals("q")) {
+			TFTPInfoPrinter.setVerboseMode(false);
+		}
+		else if (response.equals("n")) {
+			TFTPInfoPrinter.setVerboseMode(true);
+		}
+		Server server = new Server();
+		server.receiveAndSend();
 	}
 	
 }
