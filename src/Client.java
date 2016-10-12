@@ -79,14 +79,15 @@ public class Client {
 			System.out.println("Received block of data, Block#: " + blockNum);
 			
 			// Note: 256 is the maximum size of a 16 bit number.
-			if (blockNum % 256 != currentBlockNumber) {
+			if (blockNum != currentBlockNumber % 256) {
 				if (blockNum < 0) {
 					blockNum += 256; // If the block rolls over (it's a 16 bit number represented as unsigned)
 				}
 				 // If they're still not equal, another problem occurred.
-				if (blockNum % 256 != currentBlockNumber)
+				if (blockNum != currentBlockNumber % 256)
 				{
-					
+					System.out.println("Block Numbers not the same, exiting");
+					System.exit(1);
 				}
 			}
 			byte[] dataBlock = Arrays.copyOfRange(receivedData, 4, receivedData.length); // 4 is where the data starts, after opcode + blockNumber
@@ -127,7 +128,7 @@ public class Client {
 	
 	public void writeToServer(String filename, String mode) throws IOException {
 		sendRequest(writeReq, filename, mode);
-		int currentBlockNum = 0;
+		int currentBlockNumber = 0;
 		
 		BufferedInputStream in = new BufferedInputStream(new FileInputStream(filename));
 		
@@ -140,13 +141,22 @@ public class Client {
 			TFTPInfoPrinter.printReceived(receivePacket);
 			// need block number
 			int blockNum = getBlockNumberInt(receivePacket.getData());
-			if (blockNum != currentBlockNum) {
-				System.out.println("&&&&&&" + blockNum + "   " + currentBlockNum);
-				continue;
+			
+			// Note: 256 is the maximum size of a 16 bit number.
+			if (blockNum != currentBlockNumber % 256) {
+				if (blockNum < 0) {
+					blockNum += 256; // If the block rolls over (it's a 16 bit number represented as unsigned)
+				}
+				// If they're still not equal, another problem occurred.
+				if (blockNum != currentBlockNumber % 256)
+				{
+					System.out.println("Block Numbers not the same, exiting");
+					System.exit(1);
+				}	
 			}
 			
 			// increment block number then send that block
-			currentBlockNum++;
+			currentBlockNumber++;
 			
 			byte[] dataBlock = new byte[512];
 			
@@ -155,7 +165,7 @@ public class Client {
 			if (bytesRead == -1) bytesRead = 0;
 			dataBlock = Arrays.copyOf(dataBlock, bytesRead);
 			
-			byte[] sendData = formatData(dataBlock, currentBlockNum);
+			byte[] sendData = formatData(dataBlock, currentBlockNumber);
 			// Initial request was sent to wellKnownPort, but steady state file transfer should happen on another port.
 			sendPacket = new DatagramPacket(sendData, sendData.length, InetAddress.getLocalHost(), receivePacket.getPort());
 			sendAndReceiveSocket.send(sendPacket);
@@ -255,8 +265,14 @@ public class Client {
 			c.setTestMode(true);
 		}
 		
-		System.out.println("Now choose whether you would like to run in quiet or verbose mode:");
+		System.out.println("Now choose whether you would like to run in quiet or verbose mode (q/v):");
 		String response = s.nextLine();
+		if (response.equals("q")) {
+			TFTPInfoPrinter.setVerboseMode(false);
+		}
+		else if (response.equals("n")) {
+			TFTPInfoPrinter.setVerboseMode(true);
+		}
 		
 		while (true) {
 			System.out.println("Please enter in the file name (or \"shutdown\" to exit):");
