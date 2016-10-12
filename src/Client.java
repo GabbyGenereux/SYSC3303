@@ -78,8 +78,16 @@ public class Client {
 			int blockNum = getBlockNumberInt(receivedData);
 			System.out.println("Received block of data, Block#: " + blockNum);
 			
-			if (blockNum != currentBlockNumber) {
-				continue; 
+			// Note: 256 is the maximum size of a 16 bit number.
+			if (blockNum % 256 != currentBlockNumber) {
+				if (blockNum < 0) {
+					blockNum += 256; // If the block rolls over (it's a 16 bit number represented as unsigned)
+				}
+				 // If they're still not equal, another problem occurred.
+				if (blockNum % 256 != currentBlockNumber)
+				{
+					
+				}
 			}
 			byte[] dataBlock = Arrays.copyOfRange(receivedData, 4, receivedData.length); // 4 is where the data starts, after opcode + blockNumber
 			
