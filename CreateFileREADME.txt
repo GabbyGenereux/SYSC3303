@@ -38,4 +38,4 @@ Creates a file called EMPTYFILE.bin with size of 100 bytes and contains only NUL
 
 Verbose example:
 Creates a file called FILE.bin with size of 512mb+1 of random data
-	Create-FileOfSize -fileName FILE.bin -fileSize 512 -sizeSuffix mb -additionalBytes 1 -random true
+	Create-FileOfSize -fileName FILE.bin -fileSize 512 -sizeSuffix mb -additionalBytes 1 -random $true
