@@ -65,6 +65,7 @@ public class Client {
 		
 		sendRequest(readReqOP, filename, mode);
 		byte[] receivedData;
+		byte[] receivedOpcode;
 		int currentBlockNumber = 1;
 		
 		BufferedOutputStream out = new BufferedOutputStream(new FileOutputStream("ClientFiles/" + filename));
@@ -79,9 +80,22 @@ public class Client {
 			
 			// validate packet
 			receivedData = Arrays.copyOf(receivePacket.getData(), receivePacket.getLength());
+			receivedOpcode = Arrays.copyOf(receivedData, 2);
 
+			
+			if (Arrays.equals(receivedOpcode, errorOP)){
+				// Determine error code.
+				// Handle error.
+			}
+			// The received packet should be an DATA packet at this point, and this have the Opcode defined in dataOP.
+			// If it is not an error packet or an DATA packet, something happened (these cases are in later iterations).
+			else if (!Arrays.equals(receivedOpcode, dataOP)) {
+				// Do nothing special for Iteration 2.
+			}
+
+			
 			int blockNum = getBlockNumberInt(receivedData);
-			System.out.println("Received block of data, Block#: " + blockNum);
+			System.out.println("Received block of data, Block#: " + currentBlockNumber);
 			
 			// Note: 256 is the maximum size of a 16 bit number.
 			if (blockNum != currentBlockNumber) {
@@ -91,6 +105,7 @@ public class Client {
 				 // If they're still not equal, another problem occurred.
 				if (blockNum != currentBlockNumber % 256)
 				{
+					// This will likely need to be handled different in future iterations.
 					System.out.println("Block Numbers not the same, exiting " + blockNum + " " + currentBlockNumber + " " + currentBlockNumber % 256);
 					System.exit(1);
 				}
@@ -99,6 +114,9 @@ public class Client {
 			
 			// Write dataBlock to file
 			out.write(dataBlock);
+			
+			// At this point a file IO may have occurred and an error packet needs to be sent.
+			
 			
 			System.out.println("Sending Ack...");
 			// Send ack back
@@ -120,21 +138,12 @@ public class Client {
 		out.close();
 	}
 	
-	private byte[] createAck(int blockNum) {
-		byte[] ack = new byte[4];
-		ack[0] = ackOP[0]; //
-		ack[1] = ackOP[1]; // Opcode
-		byte[] bn = convertBlockNumberByteArr(blockNum);
-		ack[2] = bn[0];
-		ack[3] = bn[1];
-		
-		return ack;
-	}
-	
 	public void writeToServer(String filename, String mode) throws IOException {
 		
 		int currentBlockNumber = 0;
 		BufferedInputStream in;
+		byte[] receivedData;
+		byte[] receivedOpcode;
 		// It's a full path
 		if (filename.contains("\\") || filename.contains("/")) {
 			 in = new BufferedInputStream(new FileInputStream(filename));
@@ -160,8 +169,22 @@ public class Client {
 			System.out.println("Client is waiting to receive ACK from server");
 			sendAndReceiveSocket.receive(receivePacket);
 			TFTPInfoPrinter.printReceived(receivePacket);
+			
+			receivedData = Arrays.copyOf(receivePacket.getData(), receivePacket.getLength());
+			receivedOpcode = Arrays.copyOf(receivedData, 2);
+			
+			if (Arrays.equals(receivedOpcode, errorOP)){
+				// Determine error code.
+				// Handle error.
+			}
+			// The received packet should be an ACK packet at this point, and this have the Opcode defined in ackOP.
+			// If it is not an error packet or an ACK packet, something happened (these cases are in later iterations).
+			else if (!Arrays.equals(receivedOpcode, ackOP)) {
+				// Do nothing special for Iteration 2.
+			}
+			
 			// need block number
-			int blockNum = getBlockNumberInt(receivePacket.getData());
+			int blockNum = getBlockNumberInt(receivedData);
 			
 			// Note: 256 is the maximum size of a 16 bit number.
 			// blockNum is an unsigned number, represented as a 2s complement it will appear to go from 127 to -128
@@ -200,7 +223,16 @@ public class Client {
 		in.close();
 	}
 	
-	
+	private byte[] createAck(int blockNum) {
+		byte[] ack = new byte[4];
+		ack[0] = ackOP[0]; //
+		ack[1] = ackOP[1]; // Opcode
+		byte[] bn = convertBlockNumberByteArr(blockNum);
+		ack[2] = bn[0];
+		ack[3] = bn[1];
+		
+		return ack;
+	}
 	private int getBlockNumberInt(byte[] data) {
 		int blockNum;
 		// Check opcodes
