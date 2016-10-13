@@ -79,14 +79,14 @@ public class Client {
 			System.out.println("Received block of data, Block#: " + blockNum);
 			
 			// Note: 256 is the maximum size of a 16 bit number.
-			if (blockNum != currentBlockNumber % 256) {
+			if (blockNum != currentBlockNumber) {
 				if (blockNum < 0) {
 					blockNum += 256; // If the block rolls over (it's a 16 bit number represented as unsigned)
 				}
 				 // If they're still not equal, another problem occurred.
 				if (blockNum != currentBlockNumber % 256)
 				{
-					System.out.println("Block Numbers not the same, exiting");
+					System.out.println("Block Numbers not the same, exiting " + blockNum + " " + currentBlockNumber + " " + currentBlockNumber % 256);
 					System.exit(1);
 				}
 			}
@@ -143,14 +143,15 @@ public class Client {
 			int blockNum = getBlockNumberInt(receivePacket.getData());
 			
 			// Note: 256 is the maximum size of a 16 bit number.
-			if (blockNum != currentBlockNumber % 256) {
+			// blockNum is an unsigned number, represented as a 2s complement it will appear to go from 127 to -128
+			if (blockNum != currentBlockNumber) {
 				if (blockNum < 0) {
 					blockNum += 256; // If the block rolls over (it's a 16 bit number represented as unsigned)
 				}
 				// If they're still not equal, another problem occurred.
 				if (blockNum != currentBlockNumber % 256)
 				{
-					System.out.println("Block Numbers not the same, exiting");
+					System.out.println("Block Numbers not the same, exiting " + blockNum + " " + currentBlockNumber + " " + currentBlockNumber % 256);
 					System.exit(1);
 				}	
 			}
@@ -186,7 +187,7 @@ public class Client {
 		// Big Endian 
 		blockNum = data[2];
 		blockNum <<= 8;
-		blockNum += data[3];
+		blockNum |= data[3];
 		// 
 		return blockNum;
 	}

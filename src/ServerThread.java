@@ -17,6 +17,9 @@ public class ServerThread extends Thread{
 	String file;
 	byte[] data;
 	
+	private byte[] readReq = {0, 1};
+	private byte[] writeReq = {0, 2};
+	
 	public ServerThread(String name, DatagramPacket receivedPacket, byte[] receivedData){
 		super(name);
 		receivePacket = receivedPacket;
@@ -32,82 +35,29 @@ public class ServerThread extends Thread{
 	}
 	
 	public void run(){
-		byte sendData[] = new byte[4];
-		byte zeroByte = 0;
-		byte oneByte = 1;
-		byte twoByte = 2;
-		byte threeByte = 3;
-		byte fourByte = 4;
+
+		// Determination of type of packet received
+		byte[] opcode = {data[0], data[1]};
 		
-		System.out.println("*****" + file);
-		
-		//Check if packet is valid
-		int i;
-		for(i= 0; i < data.length; i++)
-		{
-			if(i == 0)
-			{
-				if(data[i] != zeroByte)
-				{
-					System.out.println("invalid packet, quitting..");
-					System.exit(1);
-				}
-				
-			}
-			else if(i == 1)
-			{
-				if(data[i] != oneByte && data[i] != twoByte)
-				{
-					System.out.println("invalid packet, quitting..");
-					System.exit(1);
-				}
-			}
-			else if(i == data.length-1)
-			{
-				if(data[i] != zeroByte)
-				{
-					System.out.println("invalid packet, quitting..");
-					System.exit(1);
-				}
-			}
-			else
-			{
-				if(data[i] == zeroByte)
-				{
-					if(data[i-1] == zeroByte && data[i+1] == zeroByte)
-					{
-						System.out.println("invalid packet, quitting..");
-						System.exit(1);
-					}
-				}
-			}
-		}
-		//Create new message depending on whether the packet was a read or write request
-		if(data[1] == oneByte)
-		{
-			//read request
-			sendData[0] = zeroByte;
-			sendData[1] = threeByte;
-			sendData[2] = zeroByte;
-			sendData[3] = oneByte;
+		if (Arrays.equals(opcode, readReq)) {
 			try {
 				writeToClient(file);
 			} catch (IOException e) {
 				e.printStackTrace();
 			}
 		}
-		else if(data[1] == twoByte)
-		{
-			//write request
-			sendData[0] = zeroByte;
-			sendData[1] = fourByte;
-			sendData[2] = zeroByte;
-			sendData[3] = zeroByte;
+		else if (Arrays.equals(opcode, writeReq)){
 			try {
 				readFromClient(file);
 			} catch (IOException e) {
 				e.printStackTrace();
 			}
+		}
+		//else if (Arrays.equals(opcode, error)) {} For future use, error packets will use this.
+		// Some sort of packet or data not expected at this time
+		else {
+			System.out.println("Invalid packet, exiting.");
+			System.exit(1);
 		}
 	}
 	
@@ -131,16 +81,16 @@ public class ServerThread extends Thread{
 			System.exit(1);
 		}
 		
-		int blockNumber = 1; //starting with the first block of 512 bytes
+		int currentBlockNumber = 1; //starting with the first block of 512 bytes
 		byte[] data;
 		BufferedInputStream in = new BufferedInputStream(new FileInputStream(filename));
 		while(true)
 		{
 			data = new byte[516]; //2 bytes for opcode, 2 bytes for block number, 512 bytes for data
-			byte[] block = convertBlockNumberByteArr(blockNumber); //convert the integer block number to big endian word
+			byte[] block = convertBlockNumberByteArr(currentBlockNumber); //convert the integer block number to big endian word
 			byte[] dataBlock = new byte[512];
 			data[0] = 0;
-			data[1] = 4; //ACK opcode
+			data[1] = 3; //DATA opcode
 			data[2] = block[0];
 			data[3] = block[1]; //block number
 
@@ -177,9 +127,27 @@ public class ServerThread extends Thread{
 			}
 			TFTPInfoPrinter.printReceived(receivePacket);
 			
+			//TODO: Need to validate ACK still
+			
+			int blockNum = getBlockNumberInt(receivePacket.getData());
+			
+			// Note: 256 is the maximum size of a 16 bit number.
+			if (blockNum != currentBlockNumber ) {
+				if (blockNum < 0) {
+					blockNum += 256; // If the block rolls over (it's a 16 bit number represented as unsigned)
+				}
+				// If they're still not equal, another problem occurred.
+				if (blockNum != currentBlockNumber % 256)
+				{
+					System.out.println("Block Numbers not the same, exiting " + blockNum + " " + currentBlockNumber + " " + currentBlockNumber % 256);
+					System.exit(1);
+				}	
+			}
+			
+			
 			if (bytesRead < 512) break;
 			//get ready to send the next block of bytes
-			blockNumber++;
+			currentBlockNumber++;
 		}
 		in.close();
 	}
@@ -220,6 +188,19 @@ public class ServerThread extends Thread{
 			int blockNum = getBlockNumberInt(receivedData);
 			System.out.println("Received block of data, Block#: " + blockNum);
 			
+			// Note: 256 is the maximum size of a 16 bit number.
+			if (blockNum != currentBlockNumber ) {
+				if (blockNum < 0) {
+					blockNum += 256; // If the block rolls over (it's a 16 bit number represented as unsigned)
+				}
+				// If they're still not equal, another problem occurred.
+				if (blockNum != currentBlockNumber % 256)
+				{
+					System.out.println("Block Numbers not the same, exiting " + blockNum + " " + currentBlockNumber + " " + currentBlockNumber % 256);
+					System.exit(1);
+				}	
+			}
+			
 			// There might be a more efficient method than this.
 			byte[] dataBlock = Arrays.copyOfRange(receivedData, 4, receivedData.length); // 4 is where the data starts, after opcode + blockNumber
 			
@@ -243,7 +224,7 @@ public class ServerThread extends Thread{
 		// Big Endian 
 		blockNum = data[2];
 		blockNum <<= 8;
-		blockNum += data[3];
+		blockNum |= data[3];
 		
 		return blockNum;
 	}
