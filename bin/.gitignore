@@ -5,3 +5,7 @@
 /ServerInput.class
 /ServerThread.class
 /TFTPInfoPrinter.class
+/ErrorPacket.class
+/AckPacket.class
+/DataPacket.class
+/RequestPacket.class

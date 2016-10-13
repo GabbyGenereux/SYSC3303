@@ -1,0 +1,67 @@
+import java.util.Arrays;
+
+public class RequestPacket {
+	public static final byte[] readOpcode = {0, 1};
+	public static final byte[] writeOpcode = {0, 2};
+	private byte[] data;
+	byte[] reqType;
+	private String filename;
+	private String mode;
+	
+	public String getFilename() {
+		return filename;
+	}
+	public String getMode() {
+		return mode;
+	}
+	
+	public RequestPacket(byte[] data) {
+		this.data = data;
+		StringBuilder sb = new StringBuilder();
+		int i;
+		
+		for (i = 0; data[i] != 0; i++) {
+			sb.append(data[i]);
+		}
+		filename = sb.toString();
+		// Clear the StringBuilder for next use.
+		sb.setLength(0);
+		
+		// Start after 0 byte that denoted end of file name.
+		for (i = i+1; data[i] != 0; i++) {
+			sb.append(data[i]);
+		}
+		mode = sb.toString();
+
+	}
+	public RequestPacket(byte[] reqType, String filename, String mode) {
+		this.filename = filename;
+		this.mode = mode;
+		byte[] filenameBytes = filename.getBytes();
+		byte[] modeBytes = mode.getBytes();
+		
+		// opcode + 2 zero bytes + filename bytes + mode bytes
+		data = new byte[4 + filenameBytes.length + modeBytes.length];
+		
+		if (Arrays.equals(reqType, readOpcode)){
+			data[0] = readOpcode[0];
+			data[1] = readOpcode[1];
+		}
+		else if (Arrays.equals(reqType,  writeOpcode)){
+			data[0] = writeOpcode[0];
+			data[1] = writeOpcode[1];
+		}
+		else System.out.println("ERROR: INVALID REQ TYPE");
+	
+		// offset of 2 to dest because of opcode
+		System.arraycopy(filenameBytes, 0, data, 2, filenameBytes.length);
+		data[2 + filenameBytes.length] = 0;
+		// Now extra 3 offset because of opcode + 0 byte
+		System.arraycopy(modeBytes, 0, data, filenameBytes.length + 3, modeBytes.length);
+		data[3 + filenameBytes.length + modeBytes.length] = 0;
+		
+	}
+	public byte[] encode() {
+		return data;
+	}
+}
