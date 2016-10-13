@@ -17,8 +17,12 @@ public class ServerThread extends Thread{
 	String file;
 	byte[] data;
 	
-	private byte[] readReq = {0, 1};
-	private byte[] writeReq = {0, 2};
+	// Opcodes
+	private static final byte[] readReqOP = {0, 1};
+	private static final byte[] writeReqOP = {0, 2};
+	private static final byte[] dataOP = {0, 3};
+	private static final byte[] ackOP = {0, 4};
+	private static final byte[] errorOP = {0, 5};
 	
 	public ServerThread(String name, DatagramPacket receivedPacket, byte[] receivedData){
 		super(name);
@@ -39,14 +43,14 @@ public class ServerThread extends Thread{
 		// Determination of type of packet received
 		byte[] opcode = {data[0], data[1]};
 		
-		if (Arrays.equals(opcode, readReq)) {
+		if (Arrays.equals(opcode, readReqOP)) {
 			try {
 				writeToClient(file);
 			} catch (IOException e) {
 				e.printStackTrace();
 			}
 		}
-		else if (Arrays.equals(opcode, writeReq)){
+		else if (Arrays.equals(opcode, writeReqOP)){
 			try {
 				readFromClient(file);
 			} catch (IOException e) {
@@ -89,8 +93,8 @@ public class ServerThread extends Thread{
 			data = new byte[516]; //2 bytes for opcode, 2 bytes for block number, 512 bytes for data
 			byte[] block = convertBlockNumberByteArr(currentBlockNumber); //convert the integer block number to big endian word
 			byte[] dataBlock = new byte[512];
-			data[0] = 0;
-			data[1] = 3; //DATA opcode
+			data[0] = dataOP[0];
+			data[1] = dataOP[1]; //DATA opcode
 			data[2] = block[0];
 			data[3] = block[1]; //block number
 
@@ -231,8 +235,8 @@ public class ServerThread extends Thread{
 	
 	private byte[] createAck(int blockNum) {
 		byte[] ack = new byte[4];
-		ack[0] = 0; //
-		ack[1] = 4; // Opcode
+		ack[0] = ackOP[0]; //
+		ack[1] = ackOP[1]; // Opcode
 		byte[] bn = convertBlockNumberByteArr(blockNum);
 		ack[2] = bn[0];
 		ack[3] = bn[1];

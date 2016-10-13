@@ -12,8 +12,13 @@ import java.util.Arrays;
 import java.util.Scanner;
 
 public class Client {
-	private byte[] readReq = {0, 1};
-	private byte[] writeReq = {0, 2};
+	// Opcodes
+	private static final byte[] readReqOP = {0, 1};
+	private static final byte[] writeReqOP = {0, 2};
+	private static final byte[] dataOP = {0, 3};
+	private static final byte[] ackOP = {0, 4};
+	private static final byte[] errorOP = {0, 5};
+	
 	private boolean testMode = false;
 	private int wellKnownPort;
 	DatagramPacket sendPacket, receivePacket;
@@ -58,7 +63,7 @@ public class Client {
 	public void readFromServer(String filename, String mode) throws IOException{
 		System.out.println("Initiating read request with file " + filename);
 		
-		sendRequest(readReq, filename, mode);
+		sendRequest(readReqOP, filename, mode);
 		byte[] receivedData;
 		int currentBlockNumber = 1;
 		
@@ -117,8 +122,8 @@ public class Client {
 	
 	private byte[] createAck(int blockNum) {
 		byte[] ack = new byte[4];
-		ack[0] = 0; //
-		ack[1] = 4; // Opcode
+		ack[0] = ackOP[0]; //
+		ack[1] = ackOP[1]; // Opcode
 		byte[] bn = convertBlockNumberByteArr(blockNum);
 		ack[2] = bn[0];
 		ack[3] = bn[1];
@@ -146,7 +151,7 @@ public class Client {
 			 in = new BufferedInputStream(new FileInputStream("ClientFiles/" + filename));
 		}
 		
-		sendRequest(writeReq, filename, mode);
+		sendRequest(writeReqOP, filename, mode);
 		
 		while (true) {
 			// receive ACK from previous dataBlock
@@ -210,7 +215,6 @@ public class Client {
 	private byte[] convertBlockNumberByteArr(int blockNumber) {
 		return new byte[] {(byte)((blockNumber >> 8) & 0xFF), (byte)(blockNumber & 0xFF)};
 	}
-	
 	public void shutdown() {
 		sendAndReceiveSocket.close();
 		System.exit(1);
@@ -255,8 +259,8 @@ public class Client {
 		int i;
 		
 		// opcode
-		formatted[0] = 0;
-		formatted[1] = 3;
+		formatted[0] = dataOP[0];
+		formatted[1] = dataOP[1];
 		// blockNumber
 		formatted[2] = blockNumData[0];
 		formatted[3] = blockNumData[1];
