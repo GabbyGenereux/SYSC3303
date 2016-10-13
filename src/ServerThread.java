@@ -15,7 +15,7 @@ public class ServerThread extends Thread{
 	DatagramPacket receivePacket, sendPacket;
 	DatagramSocket sendSocket, sendReceiveSocket;
 	String file;
-	byte[] data;
+	byte[] receivedData;
 	
 	// Opcodes
 	private static final byte[] readReqOP = {0, 1};
@@ -27,11 +27,11 @@ public class ServerThread extends Thread{
 	public ServerThread(String name, DatagramPacket receivedPacket, byte[] receivedData){
 		super(name);
 		receivePacket = receivedPacket;
-		data = receivedData;
+		this.receivedData = receivedData;
 		StringBuilder sb = new StringBuilder();
 		int i = 0;
-		while(data[i+2] != 0x00) {
-			sb.append((char)data[i+2]);
+		while(receivedData[i+2] != 0x00) {
+			sb.append((char)receivedData[i+2]);
 			i++;
 		}
 		file = sb.toString();
@@ -41,7 +41,7 @@ public class ServerThread extends Thread{
 	public void run(){
 
 		// Determination of type of packet received
-		byte[] opcode = {data[0], data[1]};
+		byte[] opcode = {receivedData[0], receivedData[1]};
 		
 		if (Arrays.equals(opcode, readReqOP)) {
 			try {
@@ -87,6 +87,7 @@ public class ServerThread extends Thread{
 		
 		int currentBlockNumber = 1; //starting with the first block of 512 bytes
 		byte[] data;
+		byte[] opcode;
 		BufferedInputStream in = new BufferedInputStream(new FileInputStream("ServerFiles/" + filename));
 		while(true)
 		{
@@ -98,6 +99,7 @@ public class ServerThread extends Thread{
 			data[2] = block[0];
 			data[3] = block[1]; //block number
 
+		
 			int bytesRead = in.read(dataBlock);
 			if (bytesRead == -1) bytesRead = 0; 
 			System.out.println("Bytes read: " + bytesRead);
@@ -133,6 +135,18 @@ public class ServerThread extends Thread{
 			
 			//TODO: Need to validate ACK still
 			
+			opcode = Arrays.copyOf(receivePacket.getData(), 2);
+
+			if (Arrays.equals(opcode, errorOP)){
+				// Determine error code.
+				// Handle error.
+			}
+			// The received packet should be an ACK packet at this point, and this have the Opcode defined in ackOP.
+			// If it is not an error packet or an ACK packet, something happened (these cases are in later iterations).
+			else if (!Arrays.equals(opcode, ackOP)) {
+				// Do nothing special for Iteration 2.
+			}
+			
 			int blockNum = getBlockNumberInt(receivePacket.getData());
 			
 			// Note: 256 is the maximum size of a 16 bit number.
@@ -163,6 +177,7 @@ public class ServerThread extends Thread{
 		// Send ACK with blockNumber 0 ... N;
 		// Receive dataBlock (blockNumber++)
 		byte[] receivedData;
+		byte[] opcode;
 		int currentBlockNumber = 0;
 		
 		BufferedOutputStream out = new BufferedOutputStream(new FileOutputStream("ServerFiles/" + filename));
@@ -189,6 +204,18 @@ public class ServerThread extends Thread{
 			// validate packet
 			receivedData = Arrays.copyOf(receivePacket.getData(), receivePacket.getLength());
 
+			
+			opcode = Arrays.copyOf(receivedData, 2);
+
+			if (Arrays.equals(opcode, errorOP)){
+				// Determine error code.
+				// Handle error.
+			}
+			// The received packet should be an ACK packet at this point, and this have the Opcode defined in ackOP.
+			// If it is not an error packet or an ACK packet, something happened (these cases are in later iterations).
+			else if (!Arrays.equals(opcode, ackOP)) {
+				// Do nothing special for Iteration 2.
+			}
 			int blockNum = getBlockNumberInt(receivedData);
 			System.out.println("Received block of data, Block#: " + blockNum);
 			
