@@ -62,7 +62,7 @@ public class Client {
 		byte[] receivedData;
 		int currentBlockNumber = 1;
 		
-		BufferedOutputStream out = new BufferedOutputStream(new FileOutputStream(filename));
+		BufferedOutputStream out = new BufferedOutputStream(new FileOutputStream("ClientFiles/" + filename));
 		
 		while (true) {
 			receivedData = new byte[2 + 2 + 512]; // opcode + blockNumber + 512 bytes of data
@@ -127,10 +127,26 @@ public class Client {
 	}
 	
 	public void writeToServer(String filename, String mode) throws IOException {
-		sendRequest(writeReq, filename, mode);
-		int currentBlockNumber = 0;
 		
-		BufferedInputStream in = new BufferedInputStream(new FileInputStream(filename));
+		int currentBlockNumber = 0;
+		BufferedInputStream in;
+		// It's a full path
+		if (filename.contains("\\") || filename.contains("/")) {
+			 in = new BufferedInputStream(new FileInputStream(filename));
+			 // for sending to Server
+			 int idx = filename.lastIndexOf('\\');
+			 if (idx == -1) {
+				 idx = filename.lastIndexOf('/');
+			 } 
+			 filename = filename.substring(idx+1);
+			 
+		}
+		// It's in the default ClientFiles folder
+		else {
+			 in = new BufferedInputStream(new FileInputStream("ClientFiles/" + filename));
+		}
+		
+		sendRequest(writeReq, filename, mode);
 		
 		while (true) {
 			// receive ACK from previous dataBlock

@@ -83,7 +83,7 @@ public class ServerThread extends Thread{
 		
 		int currentBlockNumber = 1; //starting with the first block of 512 bytes
 		byte[] data;
-		BufferedInputStream in = new BufferedInputStream(new FileInputStream(filename));
+		BufferedInputStream in = new BufferedInputStream(new FileInputStream("ServerFiles/" + filename));
 		while(true)
 		{
 			data = new byte[516]; //2 bytes for opcode, 2 bytes for block number, 512 bytes for data
@@ -161,7 +161,7 @@ public class ServerThread extends Thread{
 		byte[] receivedData;
 		int currentBlockNumber = 0;
 		
-		BufferedOutputStream out = new BufferedOutputStream(new FileOutputStream(filename));
+		BufferedOutputStream out = new BufferedOutputStream(new FileOutputStream("ServerFiles/" + filename));
 		sendReceiveSocket = new DatagramSocket();
 		while (true) {
 			
