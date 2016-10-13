@@ -1,6 +1,7 @@
 import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
 import java.io.FileInputStream;
+import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.net.DatagramPacket;
@@ -8,6 +9,7 @@ import java.net.DatagramSocket;
 import java.net.InetAddress;
 import java.net.SocketException;
 import java.net.UnknownHostException;
+import java.nio.file.AccessDeniedException;
 import java.util.Arrays;
 import java.util.Scanner;
 
@@ -75,7 +77,25 @@ public class Client {
 			receivePacket = new DatagramPacket(receivedData, receivedData.length);
 			System.out.println("Waiting for block of data...");
 			// receive block
-			sendAndReceiveSocket.receive(receivePacket);
+			try{
+				sendAndReceiveSocket.receive(receivePacket);
+			}catch(IOException e)
+			{
+				if(e.getCause() instanceof FileNotFoundException)
+				{
+					System.err.println("Error: File not found");
+					return;
+				}
+				else if(e.getCause() instanceof AccessDeniedException)
+				{
+					System.err.println("Error: Access denied");
+					return;
+				}
+				else
+				{
+					throw new IOException();
+				}
+			}
 			TFTPInfoPrinter.printReceived(receivePacket);
 			
 			// validate packet
@@ -167,8 +187,21 @@ public class Client {
 			byte[] data = new byte[4];
 			receivePacket = new DatagramPacket(data, data.length);
 			System.out.println("Client is waiting to receive ACK from server");
-			sendAndReceiveSocket.receive(receivePacket);
-			TFTPInfoPrinter.printReceived(receivePacket);
+			try
+			{
+				sendAndReceiveSocket.receive(receivePacket);
+			}catch(IOException e)
+			{
+				if(e.getCause() instanceof AccessDeniedException)
+				{
+					System.err.println("Error: Access denied." );
+					return;
+				}
+				else
+				{
+					throw new IOException();
+				}
+			}			TFTPInfoPrinter.printReceived(receivePacket);
 			
 			receivedData = Arrays.copyOf(receivePacket.getData(), receivePacket.getLength());
 			receivedOpcode = Arrays.copyOf(receivedData, 2);
