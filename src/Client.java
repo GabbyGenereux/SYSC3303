@@ -64,22 +64,24 @@ public class Client {
 	}
 	
 	public void readFromServer(String filename, String mode) throws IOException{
+		//check if a file with that name exists on the client side
+		File f = new File("ClientFiles/" + filename);
+		if(f.exists()){
+			String msg = filename +" already exists on client side";
+			System.err.println(msg);
+			ErrorPacket errPckt = new ErrorPacket((byte) 6, msg);
+			byte[] err = errPckt.encode();
+			sendPacket = new DatagramPacket(err, err.length, InetAddress.getLocalHost(), wellKnownPort);
+			sendAndReceiveSocket.send(sendPacket);
+			System.exit(1);
+		}
+		
 		System.out.println("Initiating read request with file " + filename);
 		
 		sendRequest(readReqOP, filename, mode);
 		byte[] receivedData;
 		byte[] receivedOpcode;
 		int currentBlockNumber = 1;
-		
-		//check if a file with that name exists on the client side
-		File f = new File("ClientFiles/" + filename);
-		if(f.exists()){
-			System.err.println("File Already Exists on client side");
-			byte[] err = createError(6);
-			sendPacket = new DatagramPacket(err, err.length, InetAddress.getLocalHost(), wellKnownPort);
-			sendAndReceiveSocket.send(sendPacket);
-			System.exit(1);
-		}
 		
 		BufferedOutputStream out = new BufferedOutputStream(new FileOutputStream("ClientFiles/" + filename));
 		
@@ -148,8 +150,10 @@ public class Client {
 				out.write(dataBlock);
 			}
 			catch(IOException e){ //disk full
-				System.err.println("Unable to write, disk space full");
-				byte[] err = createError(3);
+				String msg = "Unable to write file " +filename+", disk space full";
+				System.err.println(msg);
+				ErrorPacket errPckt = new ErrorPacket((byte) 3, msg);
+				byte[] err = errPckt.encode();
 				sendPacket = new DatagramPacket(err, err.length, InetAddress.getLocalHost(), receivePacket.getPort());
 				sendAndReceiveSocket.send(sendPacket);
 				System.exit(1);
@@ -287,37 +291,6 @@ public class Client {
 		return ack;
 	}
 	
-	private byte[] createError(int errorCode) {
-		String msg;
-		if(errorCode == 1){
-			msg = "File not found.";
-		}
-		else if(errorCode == 2){
-			msg = "Access violation.";
-		}
-		else if(errorCode == 3){
-			msg = "Disk full or allocation exceeded.";
-		}
-		else if(errorCode == 6){
-			msg = "File already exists.";
-		}
-		else{
-			msg = null;
-		}
-		byte[] error = new byte[msg.length() + 5];
-		byte[] errorMsg = msg.getBytes();
-		error[0] = errorOP[0]; //
-		error[1] = errorOP[1]; // Opcode
-		error[2] = 0; //
-		error[3] = (byte) errorCode; // errorCode
-		int i;
-		for (i = 0; i < errorMsg.length; i++) {
-			error[i + 4] = errorMsg[i];
-		}
-		error[i + 4] = 0;
-		
-		return error;
-	}
 	private int getBlockNumberInt(byte[] data) {
 		int blockNum;
 		// Check opcodes
