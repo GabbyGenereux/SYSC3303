@@ -81,13 +81,22 @@ public class Client {
 			{
 				if(e.getCause() instanceof FileNotFoundException)
 				{
-					System.err.println("Error: File not found");
-					return;
-				}
+					String msg = "Error: File not found";
+					System.err.println(msg);
+					ErrorPacket errPckt = new ErrorPacket((byte) 1, msg);
+					byte[] err = errPckt.encode();
+					sendPacket = new DatagramPacket(err, err.length, InetAddress.getLocalHost(), receivePacket.getPort());
+					sendAndReceiveSocket.send(sendPacket);
+					return;				}
 				else if(e.getCause() instanceof AccessDeniedException)
 				{
-					System.err.println("Error: Access denied");
-					return;
+					String msg = "Error: Access denied";
+					System.err.println(msg);
+					ErrorPacket errPckt = new ErrorPacket((byte) 2, msg);
+					byte[] err = errPckt.encode();
+					sendPacket = new DatagramPacket(err, err.length, InetAddress.getLocalHost(), receivePacket.getPort());
+					sendAndReceiveSocket.send(sendPacket);
+					return;				
 				}
 				else
 				{
@@ -207,8 +216,13 @@ public class Client {
 			{
 				if(e.getCause() instanceof AccessDeniedException)
 				{
-					System.err.println("Error: Access denied." );
-					return;
+					String msg = "Error: Access denied";
+					System.err.println(msg);
+					ErrorPacket errPckt = new ErrorPacket((byte) 2, msg);
+					byte[] err = errPckt.encode();
+					sendPacket = new DatagramPacket(err, err.length, InetAddress.getLocalHost(), receivePacket.getPort());
+					sendAndReceiveSocket.send(sendPacket);
+					return;			
 				}
 				else
 				{
