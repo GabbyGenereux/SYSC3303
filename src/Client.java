@@ -15,10 +15,12 @@ import java.util.Arrays;
 import java.util.Scanner;
 
 public class Client {
+	private static final int bufferSize = 516;
+	private static final int blockSize = 512;
 	private boolean testMode = false;
 	private int wellKnownPort;
-	DatagramPacket sendPacket, receivePacket;
-	DatagramSocket sendAndReceiveSocket;
+	private DatagramPacket sendPacket, receivePacket;
+	private DatagramSocket sendAndReceiveSocket;
 
 	public boolean isTestMode() {
 		return testMode;
@@ -55,6 +57,7 @@ public class Client {
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
+		TFTPInfoPrinter.printSent(request);
 	}
 	
 	public void readFromServer(String filename, String mode) throws IOException{
@@ -80,7 +83,7 @@ public class Client {
 		BufferedOutputStream out = new BufferedOutputStream(new FileOutputStream("ClientFiles/" + filename));
 		
 		while (true) {
-			receivedData = new byte[2 + 2 + 512]; // opcode + blockNumber + 512 bytes of data
+			receivedData = new byte[bufferSize]; // opcode + blockNumber + 512 bytes of data
 			receivePacket = new DatagramPacket(receivedData, receivedData.length);
 			System.out.println("Waiting for block of data...");
 			// receive block
@@ -112,8 +115,10 @@ public class Client {
 			
 			if (Arrays.equals(receivedOpcode, ErrorPacket.opcode)){
 				ErrorPacket ep = new ErrorPacket(receivedData);
-				//ep.getErrorCode() 
+				System.out.println("Error code: " + ep.getErrorCode() + ": " + ep.getErrorMessage());
+				
 				// Handle error.
+				return;
 			}
 			// The received packet should be an DATA packet at this point, and this have the Opcode defined in dataOP.
 			// If it is not an error packet or an DATA packet, something happened (these cases are in later iterations).
@@ -204,7 +209,7 @@ public class Client {
 		
 		while (true) {
 			// receive ACK from previous dataBlock
-			byte[] data = new byte[4];
+			byte[] data = new byte[bufferSize];
 			receivePacket = new DatagramPacket(data, data.length);
 			System.out.println("Client is waiting to receive ACK from server");
 			try
@@ -258,7 +263,7 @@ public class Client {
 			// increment block number then send that block
 			currentBlockNumber++;
 			
-			byte[] dataBlock = new byte[512];
+			byte[] dataBlock = new byte[blockSize];
 			
 			// Resize dataBlock to total bytes read
 			int bytesRead = in.read(dataBlock);
@@ -290,12 +295,12 @@ public class Client {
 		
 		System.out.println("Hello! Please type which mode to run in; normal or test: (n/t)");
 		Scanner s = new Scanner(System.in);
-		String mode = s.nextLine().toLowerCase();
+		String testingMode = s.nextLine().toLowerCase();
 		
-		if (mode.equals("n") || mode.equals("normal")) {
+		if (testingMode.equals("n") || testingMode.equals("normal")) {
 			c.setTestMode(false);
 		}
-		else if (mode.equals("t") || mode.equals("test")) {
+		else if (testingMode.equals("t") || testingMode.equals("test")) {
 			c.setTestMode(true);
 		}
 		
@@ -318,11 +323,11 @@ public class Client {
 			
 			try {
 				if (action.equals("r") || action.equals("read")) {
-					c.readFromServer(fileName, mode);
+					c.readFromServer(fileName, "octet");
 					System.out.println("Transfer complete");
 				}
 				else if (action.equals("w") || action.equals("write")) {
-					c.writeToServer(fileName, mode);
+					c.writeToServer(fileName, "octet");
 					System.out.println("Transfer complete");
 				}
 				else {

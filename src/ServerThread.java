@@ -1,33 +1,33 @@
 import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
 import java.io.FileInputStream;
+import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
 import java.net.SocketException;
+import java.nio.file.AccessDeniedException;
 import java.util.Arrays;
 
 
 public class ServerThread extends Thread{
-	DatagramPacket receivePacket, sendPacket;
-	DatagramSocket sendSocket, sendReceiveSocket;
-	String file;
-	byte[] receivedData;
+	private static final int bufferSize = 516;
+	private static final int blockSize = 512;
+	
+	private DatagramPacket receivePacket, sendPacket;
+	private DatagramSocket sendSocket, sendReceiveSocket;
+	private String file;
+	private byte[] receivedData;
 	
 	public ServerThread(String name, DatagramPacket receivedPacket, byte[] receivedData){
 		super(name);
 		receivePacket = receivedPacket;
 		this.receivedData = receivedData;
-		StringBuilder sb = new StringBuilder();
-		int i = 0;
-		while(receivedData[i+2] != 0x00) {
-			sb.append((char)receivedData[i+2]);
-			i++;
-		}
-		file = sb.toString();
-		
+		RequestPacket rp = new RequestPacket(receivedData);
+		file = rp.getFilename();
+		System.out.println("FILE:::::::" + file);
 	}
 	
 	public void run(){
@@ -75,12 +75,76 @@ public class ServerThread extends Thread{
 		int currentBlockNumber = 1; //starting with the first block of 512 bytes
 		byte[] data;
 		byte[] opcode;
-		BufferedInputStream in = new BufferedInputStream(new FileInputStream("ServerFiles/" + filename));
+		BufferedInputStream in = null;
+		try {
+			in = new BufferedInputStream(new FileInputStream("ServerFiles/" + filename));
+		} 
+		
+		catch(IOException e)
+		{
+			if(e instanceof FileNotFoundException)
+			{
+				String errorString = '"' + filename + '"' + " was not found on the server.";
+				ErrorPacket ep = new ErrorPacket((byte) 1, errorString);
+				
+				System.err.println(errorString);
+				
+				// Send errorPacket
+				sendPacket = new DatagramPacket(ep.encode(), ep.encode().length, receivePacket.getAddress(), receivePacket.getPort());
+				try
+				{
+					sendReceiveSocket.send(sendPacket);
+				}
+				catch (IOException e2)
+				{
+					e2.printStackTrace();
+					System.exit(1);
+				}
+				TFTPInfoPrinter.printSent(sendPacket);
+				return;
+			}
+			else if(e instanceof AccessDeniedException)
+			{
+				String errorString = "Server could not access " + '"' + filename + '"' + ".";
+				ErrorPacket ep = new ErrorPacket((byte) 2, errorString);
+				
+				System.err.println(errorString);
+				
+				// Send errorPacket
+				sendPacket = new DatagramPacket(ep.encode(), ep.encode().length, receivePacket.getAddress(), receivePacket.getPort());
+				try
+				{
+					sendReceiveSocket.send(sendPacket);
+				}
+				catch (IOException e2)
+				{
+					e2.printStackTrace();
+					System.exit(1);
+				}
+				TFTPInfoPrinter.printSent(sendPacket);
+				return;
+			}
+			else
+			{
+				throw new IOException();
+			}
+		} 
+		
+			
+		
 		while(true)
 		{
-			byte[] dataBlock = new byte[512];
+			byte[] dataBlock = new byte[blockSize];
 
-			int bytesRead = in.read(dataBlock);
+			int bytesRead = 0;
+			try {
+				bytesRead = in.read(dataBlock);
+			} catch (IOException e) {
+				
+			}
+			
+			
+			
 			if (bytesRead == -1) bytesRead = 0; 
 			dataBlock = Arrays.copyOf(dataBlock, bytesRead);
 			System.out.println("Bytes read: " + bytesRead);
@@ -102,7 +166,7 @@ public class ServerThread extends Thread{
 			TFTPInfoPrinter.printSent(sendPacket);
 			
 			//receive the ACK from the client
-			byte[] ack = new byte[4];
+			byte[] ack = new byte[bufferSize];
 			receivePacket = new DatagramPacket(ack, ack.length);
 			try
 			{
@@ -178,7 +242,7 @@ public class ServerThread extends Thread{
 			TFTPInfoPrinter.printSent(sendPacket);
 			currentBlockNumber++;
 			
-			receivedData = new byte[2 + 2 + 512]; // opcode + blockNumber + 512 bytes of data
+			receivedData = new byte[bufferSize];
 			receivePacket = new DatagramPacket(receivedData, receivedData.length);
 			System.out.println("Waiting for block of data...");
 			// receive block
