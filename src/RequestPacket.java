@@ -17,19 +17,22 @@ public class RequestPacket {
 	
 	public RequestPacket(byte[] data) {
 		this.data = data;
-		int i, j;
-		byte[] buffer = new byte[data.length];
+		StringBuilder sb = new StringBuilder();
+		int i;
 		
-		for (i = 2; data[i] != 0; i++) {
-			buffer[i-2] = data[i];
+		for (i = 0; data[i] != 0; i++) {
+			sb.append(data[i]);
 		}
-		filename = new String(Arrays.copyOf(buffer, i - 2));
-
+		filename = sb.toString();
+		// Clear the StringBuilder for next use.
+		sb.setLength(0);
+		
 		// Start after 0 byte that denoted end of file name.
-		for (j = ++i; data[i] != 0; i++) {
-			buffer[i - j] = data[i];
+		for (i = i+1; data[i] != 0; i++) {
+			sb.append(data[i]);
 		}
-		mode = new String(Arrays.copyOf(buffer, i - j));
+		mode = sb.toString();
+
 	}
 	public RequestPacket(byte[] reqType, String filename, String mode) {
 		this.filename = filename;

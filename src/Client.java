@@ -295,12 +295,12 @@ public class Client {
 		
 		System.out.println("Hello! Please type which mode to run in; normal or test: (n/t)");
 		Scanner s = new Scanner(System.in);
-		String testingMode = s.nextLine().toLowerCase();
+		String mode = s.nextLine().toLowerCase();
 		
-		if (testingMode.equals("n") || testingMode.equals("normal")) {
+		if (mode.equals("n") || mode.equals("normal")) {
 			c.setTestMode(false);
 		}
-		else if (testingMode.equals("t") || testingMode.equals("test")) {
+		else if (mode.equals("t") || mode.equals("test")) {
 			c.setTestMode(true);
 		}
 		

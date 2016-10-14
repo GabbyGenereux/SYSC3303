@@ -8,7 +8,6 @@ import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
 import java.net.SocketException;
-import java.nio.file.AccessDeniedException;
 import java.util.Arrays;
 
 
@@ -27,7 +26,6 @@ public class ServerThread extends Thread{
 		this.receivedData = receivedData;
 		RequestPacket rp = new RequestPacket(receivedData);
 		file = rp.getFilename();
-		System.out.println("FILE:::::::" + file);
 	}
 	
 	public void run(){
@@ -79,54 +77,61 @@ public class ServerThread extends Thread{
 		try {
 			in = new BufferedInputStream(new FileInputStream("ServerFiles/" + filename));
 		} 
-		
 		catch(IOException e)
 		{
-			if(e instanceof FileNotFoundException)
-			{
-				String errorString = '"' + filename + '"' + " was not found on the server.";
-				ErrorPacket ep = new ErrorPacket((byte) 1, errorString);
-				
-				System.err.println(errorString);
-				
-				// Send errorPacket
-				sendPacket = new DatagramPacket(ep.encode(), ep.encode().length, receivePacket.getAddress(), receivePacket.getPort());
-				try
-				{
-					sendReceiveSocket.send(sendPacket);
-				}
-				catch (IOException e2)
-				{
-					e2.printStackTrace();
-					System.exit(1);
-				}
-				TFTPInfoPrinter.printSent(sendPacket);
-				return;
+			Throwable cause = e;
+			while(cause.getCause() != null) {
+			    cause = cause.getCause();
 			}
-			else if(e instanceof AccessDeniedException)
+			System.err.println(cause.getMessage());
+			if(cause instanceof FileNotFoundException)
 			{
-				String errorString = "Server could not access " + '"' + filename + '"' + ".";
-				ErrorPacket ep = new ErrorPacket((byte) 2, errorString);
-				
-				System.err.println(errorString);
-				
-				// Send errorPacket
-				sendPacket = new DatagramPacket(ep.encode(), ep.encode().length, receivePacket.getAddress(), receivePacket.getPort());
-				try
-				{
-					sendReceiveSocket.send(sendPacket);
+				// Hacky solution to get determine if invalid file permissions.
+				if (e.getMessage().contains("(Access is denied)")) {
+					String errorString = "Server could not access " + '"' + filename + '"' + ".";
+					ErrorPacket ep = new ErrorPacket((byte) 2, errorString);
+					
+					System.err.println(errorString);
+					
+					// Send errorPacket
+					sendPacket = new DatagramPacket(ep.encode(), ep.encode().length, receivePacket.getAddress(), receivePacket.getPort());
+					try
+					{
+						sendReceiveSocket.send(sendPacket);
+					}
+					catch (IOException e2)
+					{
+						e2.printStackTrace();
+						System.exit(1);
+					}
+					TFTPInfoPrinter.printSent(sendPacket);
+					return;
 				}
-				catch (IOException e2)
-				{
-					e2.printStackTrace();
-					System.exit(1);
+				else {
+					String errorString = '"' + filename + '"' + " was not found on the server.";
+					ErrorPacket ep = new ErrorPacket((byte) 1, errorString);
+					
+					System.err.println(errorString);
+					
+					// Send errorPacket
+					sendPacket = new DatagramPacket(ep.encode(), ep.encode().length, receivePacket.getAddress(), receivePacket.getPort());
+					try
+					{
+						sendReceiveSocket.send(sendPacket);
+					}
+					catch (IOException e2)
+					{
+						e2.printStackTrace();
+						System.exit(1);
+					}
+					TFTPInfoPrinter.printSent(sendPacket);
+					return;
 				}
-				TFTPInfoPrinter.printSent(sendPacket);
-				return;
+				
 			}
 			else
 			{
-				throw new IOException();
+				e.printStackTrace();
 			}
 		} 
 		
@@ -142,8 +147,6 @@ public class ServerThread extends Thread{
 			} catch (IOException e) {
 				
 			}
-			
-			
 			
 			if (bytesRead == -1) bytesRead = 0; 
 			dataBlock = Arrays.copyOf(dataBlock, bytesRead);
@@ -184,8 +187,14 @@ public class ServerThread extends Thread{
 			opcode = Arrays.copyOf(receivePacket.getData(), 2);
 
 			if (Arrays.equals(opcode, ErrorPacket.opcode)){
-				// Determine error code.
-				// Handle error.
+				// Determine error code
+				
+				ErrorPacket ep = new ErrorPacket(Arrays.copyOf(receivePacket.getData(), receivePacket.getLength()));
+				System.err.println(ep.getErrorMessage());
+				// As the server, 
+						
+				in.close();
+				return;
 			}
 			// The received packet should be an ACK packet at this point, and this have the Opcode defined in ackOP.
 			// If it is not an error packet or an ACK packet, something happened (these cases are in later iterations).
@@ -256,8 +265,11 @@ public class ServerThread extends Thread{
 			opcode = Arrays.copyOf(receivedData, 2);
 
 			if (Arrays.equals(opcode, ErrorPacket.opcode)){
-				// Determine error code.
-				// Handle error.
+				ErrorPacket ep = new ErrorPacket(receivedData);
+				System.err.println(ep.getErrorMessage());
+				
+				out.close();
+				return;
 			}
 			// The received packet should be an DATA packet at this point, and this have the Opcode defined in ackOP.
 			// If it is not an error packet or an DATA packet, something happened (these cases are in later iterations).
@@ -285,7 +297,42 @@ public class ServerThread extends Thread{
 			byte[] dataBlock = dp.getDataBlock();
 			
 			// Write dataBlock to file
-			out.write(dataBlock);
+			try {
+				out.write(dataBlock);
+			}
+			catch(IOException e)
+			{
+				Throwable cause = e;
+				while(cause.getCause() != null) {
+				    cause = cause.getCause();
+				}
+				System.err.println(cause.getMessage());
+				if(cause instanceof FileNotFoundException)
+				{
+					// Hacky solution to get determine if invalid file permissions.
+					if (e.getMessage().contains("(Access is denied)")) {
+						String errorString = "Server could not write " + '"' + filename + '"' + ".";
+						ErrorPacket ep = new ErrorPacket((byte) 2, errorString);
+						
+						System.err.println(errorString);
+						
+						// Send errorPacket
+						sendPacket = new DatagramPacket(ep.encode(), ep.encode().length, receivePacket.getAddress(), receivePacket.getPort());
+						try
+						{
+							sendReceiveSocket.send(sendPacket);
+						}
+						catch (IOException e2)
+						{
+							e2.printStackTrace();
+							System.exit(1);
+						}
+						TFTPInfoPrinter.printSent(sendPacket);
+						out.close();
+						return;
+					}
+				}
+			}
 			
 			
 			
