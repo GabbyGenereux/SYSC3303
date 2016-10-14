@@ -60,19 +60,7 @@ public class Client {
 		TFTPInfoPrinter.printSent(request);
 	}
 	
-	public void readFromServer(String filename, String mode) throws IOException{
-		//check if a file with that name exists on the client side
-		File f = new File("ClientFiles/" + filename);
-		if(f.exists()){
-			String msg = filename +" already exists on client side";
-			System.err.println(msg);
-			ErrorPacket errPckt = new ErrorPacket((byte) 6, msg);
-			byte[] err = errPckt.encode();
-			sendPacket = new DatagramPacket(err, err.length, InetAddress.getLocalHost(), wellKnownPort);
-			sendAndReceiveSocket.send(sendPacket);
-			return;
-		}
-		
+	public void readFromServer(String filename, String mode) throws IOException{		
 		System.out.println("Initiating read request with file " + filename);
 		
 		sendRequest(RequestPacket.readOpcode, filename, mode);
@@ -323,8 +311,15 @@ public class Client {
 			
 			try {
 				if (action.equals("r") || action.equals("read")) {
-					c.readFromServer(fileName, "octet");
-					System.out.println("Transfer complete");
+					//check if a file with that name exists on the client side
+					File f = new File("ClientFiles/" + fileName);
+					if(f.exists()){
+						System.out.println(fileName +" already exists on client side");
+					}
+					else{
+						c.readFromServer(fileName, "octet");
+						System.out.println("Transfer complete");
+					}
 				}
 				else if (action.equals("w") || action.equals("write")) {
 					c.writeToServer(fileName, "octet");
