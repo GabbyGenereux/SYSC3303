@@ -239,7 +239,7 @@ public class ServerThread extends Thread{
 		
 		if(new File("ServerFiles/" + filename).exists()){
 			String errorString = filename + " already exists on Server.";
-			ErrorPacket ep = new ErrorPacket((byte) 2, errorString);
+			ErrorPacket ep = new ErrorPacket((byte) 6, errorString);
 			System.err.println(errorString);
 			
 			// Send errorPacket
