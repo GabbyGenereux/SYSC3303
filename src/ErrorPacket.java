@@ -24,13 +24,12 @@ public class ErrorPacket {
 		this.data = data;
 		errorCode = data[3];
 		
-		StringBuilder sb = new StringBuilder();
-		
+		byte[] strBytes = new byte[data.length - 4];
 		for (int i = 4; data[i] != 0; i++) {
-			sb.append(data[i]);
+			strBytes[i - 4] = data[i];
 		}
 		
-		errorMessage = sb.toString();
+		errorMessage = new String(strBytes);
 	}
 	/***
 	 * 
