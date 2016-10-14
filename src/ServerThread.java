@@ -1,5 +1,6 @@
 import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
+import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
@@ -236,6 +237,26 @@ public class ServerThread extends Thread{
 		byte[] opcode;
 		int currentBlockNumber = 0;
 		
+		if(new File("ServerFiles/" + filename).exists()){
+			String errorString = filename + " already exists on Server.";
+			ErrorPacket ep = new ErrorPacket((byte) 2, errorString);
+			System.err.println(errorString);
+			
+			// Send errorPacket
+			sendPacket = new DatagramPacket(ep.encode(), ep.encode().length, receivePacket.getAddress(), receivePacket.getPort());
+			try
+			{
+				sendReceiveSocket.send(sendPacket);
+			}
+			catch (IOException e2)
+			{
+				e2.printStackTrace();
+				System.exit(1);
+			}
+			TFTPInfoPrinter.printSent(sendPacket);
+			return;
+		}
+		
 		BufferedOutputStream out = new BufferedOutputStream(new FileOutputStream("ServerFiles/" + filename));
 		sendReceiveSocket = new DatagramSocket();
 		while (true) {
@@ -307,31 +328,34 @@ public class ServerThread extends Thread{
 				    cause = cause.getCause();
 				}
 				System.err.println(cause.getMessage());
-				if(cause instanceof FileNotFoundException)
-				{
-					// Hacky solution to get determine if invalid file permissions.
-					if (e.getMessage().contains("(Access is denied)")) {
-						String errorString = "Server could not write " + '"' + filename + '"' + ".";
-						ErrorPacket ep = new ErrorPacket((byte) 2, errorString);
-						
-						System.err.println(errorString);
-						
-						// Send errorPacket
-						sendPacket = new DatagramPacket(ep.encode(), ep.encode().length, receivePacket.getAddress(), receivePacket.getPort());
-						try
-						{
-							sendReceiveSocket.send(sendPacket);
-						}
-						catch (IOException e2)
-						{
-							e2.printStackTrace();
-							System.exit(1);
-						}
-						TFTPInfoPrinter.printSent(sendPacket);
-						out.close();
-						return;
-					}
+				String errorString;
+				ErrorPacket ep;
+				if(cause instanceof FileNotFoundException && e.getMessage().contains("(Access is denied)"))
+				{ // Hacky solution to get determine if invalid file permissions.
+					errorString = "Server could not write " + '"' + filename + '"' + ".";
+					ep = new ErrorPacket((byte) 2, errorString);
 				}
+				else{
+					errorString = "Server disk full, unable to write.";
+					ep = new ErrorPacket((byte) 3, errorString);
+				}
+					
+				System.err.println(errorString);
+				
+				// Send errorPacket
+				sendPacket = new DatagramPacket(ep.encode(), ep.encode().length, receivePacket.getAddress(), receivePacket.getPort());
+				try
+				{
+					sendReceiveSocket.send(sendPacket);
+				}
+				catch (IOException e2)
+				{
+					e2.printStackTrace();
+					System.exit(1);
+				}
+				TFTPInfoPrinter.printSent(sendPacket);
+				out.close();
+				return;
 			}
 			
 			
