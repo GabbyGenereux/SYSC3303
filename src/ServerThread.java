@@ -236,7 +236,7 @@ public class ServerThread extends Thread{
 		byte[] receivedData;
 		byte[] opcode;
 		int currentBlockNumber = 0;
-		
+		sendReceiveSocket = new DatagramSocket();
 		if(new File("ServerFiles/" + filename).exists()){
 			String errorString = filename + " already exists on Server.";
 			ErrorPacket ep = new ErrorPacket((byte) 6, errorString);
@@ -258,7 +258,7 @@ public class ServerThread extends Thread{
 		}
 		
 		BufferedOutputStream out = new BufferedOutputStream(new FileOutputStream("ServerFiles/" + filename));
-		sendReceiveSocket = new DatagramSocket();
+		
 		while (true) {
 			
 			System.out.println("Sending Ack...");
