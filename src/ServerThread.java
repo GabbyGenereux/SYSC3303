@@ -1,7 +1,6 @@
 import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
 import java.io.FileInputStream;
-import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.net.DatagramPacket;
@@ -16,13 +15,6 @@ public class ServerThread extends Thread{
 	DatagramSocket sendSocket, sendReceiveSocket;
 	String file;
 	byte[] receivedData;
-	
-	// Opcodes
-	private static final byte[] readReqOP = {0, 1};
-	private static final byte[] writeReqOP = {0, 2};
-	private static final byte[] dataOP = {0, 3};
-	private static final byte[] ackOP = {0, 4};
-	private static final byte[] errorOP = {0, 5};
 	
 	public ServerThread(String name, DatagramPacket receivedPacket, byte[] receivedData){
 		super(name);
@@ -43,14 +35,14 @@ public class ServerThread extends Thread{
 		// Determination of type of packet received
 		byte[] opcode = {receivedData[0], receivedData[1]};
 		
-		if (Arrays.equals(opcode, readReqOP)) {
+		if (Arrays.equals(opcode, RequestPacket.readOpcode)) {
 			try {
 				writeToClient(file);
 			} catch (IOException e) {
 				e.printStackTrace();
 			}
 		}
-		else if (Arrays.equals(opcode, writeReqOP)){
+		else if (Arrays.equals(opcode, RequestPacket.writeOpcode)){
 			try {
 				readFromClient(file);
 			} catch (IOException e) {
@@ -63,11 +55,6 @@ public class ServerThread extends Thread{
 			System.out.println("Invalid packet, exiting.");
 			System.exit(1);
 		}
-	}
-	
-	private byte[] convertBlockNumberByteArr(int blockNumber) 
-	{
-		return new byte[] {(byte)((blockNumber >> 8) & 0xFF), (byte)(blockNumber & 0xFF)};
 	}
 	
 	//send the file from the server to the client, given the filename (for a client's read request)
@@ -91,23 +78,18 @@ public class ServerThread extends Thread{
 		BufferedInputStream in = new BufferedInputStream(new FileInputStream("ServerFiles/" + filename));
 		while(true)
 		{
-			data = new byte[516]; //2 bytes for opcode, 2 bytes for block number, 512 bytes for data
-			byte[] block = convertBlockNumberByteArr(currentBlockNumber); //convert the integer block number to big endian word
 			byte[] dataBlock = new byte[512];
-			data[0] = dataOP[0];
-			data[1] = dataOP[1]; //DATA opcode
-			data[2] = block[0];
-			data[3] = block[1]; //block number
 
-		
 			int bytesRead = in.read(dataBlock);
 			if (bytesRead == -1) bytesRead = 0; 
+			dataBlock = Arrays.copyOf(dataBlock, bytesRead);
 			System.out.println("Bytes read: " + bytesRead);
-			System.arraycopy(dataBlock, 0, data, 4, bytesRead);
 			
+			DataPacket dp = new DataPacket(currentBlockNumber, dataBlock);
+			data = dp.encode();
 			
 			//send the data to the client
-			sendPacket = new DatagramPacket(data, bytesRead + 4, receivePacket.getAddress(), receivePacket.getPort());
+			sendPacket = new DatagramPacket(data, data.length, receivePacket.getAddress(), receivePacket.getPort());
 			try
 			{
 				sendReceiveSocket.send(sendPacket);
@@ -137,17 +119,19 @@ public class ServerThread extends Thread{
 			
 			opcode = Arrays.copyOf(receivePacket.getData(), 2);
 
-			if (Arrays.equals(opcode, errorOP)){
+			if (Arrays.equals(opcode, ErrorPacket.opcode)){
 				// Determine error code.
 				// Handle error.
 			}
 			// The received packet should be an ACK packet at this point, and this have the Opcode defined in ackOP.
 			// If it is not an error packet or an ACK packet, something happened (these cases are in later iterations).
-			else if (!Arrays.equals(opcode, ackOP)) {
+			else if (!Arrays.equals(opcode, AckPacket.opcode)) {
 				// Do nothing special for Iteration 2.
 			}
+			byte[] dataReceived = Arrays.copyOf(receivePacket.getData(), receivePacket.getLength());
+			AckPacket ap = new AckPacket(dataReceived);
 			
-			int blockNum = getBlockNumberInt(receivePacket.getData());
+			int blockNum = ap.getBlockNum();
 			
 			// Note: 256 is the maximum size of a 16 bit number.
 			if (blockNum != currentBlockNumber ) {
@@ -161,7 +145,6 @@ public class ServerThread extends Thread{
 					System.exit(1);
 				}	
 			}
-			
 			
 			if (bytesRead < 512) break;
 			//get ready to send the next block of bytes
@@ -186,7 +169,8 @@ public class ServerThread extends Thread{
 			
 			System.out.println("Sending Ack...");
 			// Send ack back
-			byte[] ack = createAck(currentBlockNumber);
+			AckPacket ap = new AckPacket(currentBlockNumber);
+			byte[] ack = ap.encode();
 			
 			// Initial request was sent to wellKnownPort, but steady state file transfer should happen on another port.
 			sendPacket = new DatagramPacket(ack, ack.length, InetAddress.getLocalHost(), receivePacket.getPort());
@@ -207,16 +191,18 @@ public class ServerThread extends Thread{
 			
 			opcode = Arrays.copyOf(receivedData, 2);
 
-			if (Arrays.equals(opcode, errorOP)){
+			if (Arrays.equals(opcode, ErrorPacket.opcode)){
 				// Determine error code.
 				// Handle error.
 			}
-			// The received packet should be an ACK packet at this point, and this have the Opcode defined in ackOP.
-			// If it is not an error packet or an ACK packet, something happened (these cases are in later iterations).
-			else if (!Arrays.equals(opcode, ackOP)) {
+			// The received packet should be an DATA packet at this point, and this have the Opcode defined in ackOP.
+			// If it is not an error packet or an DATA packet, something happened (these cases are in later iterations).
+			else if (!Arrays.equals(opcode, DataPacket.opcode)) {
 				// Do nothing special for Iteration 2.
 			}
-			int blockNum = getBlockNumberInt(receivedData);
+			
+			DataPacket dp = new DataPacket(receivedData);
+			int blockNum = dp.getBlockNum();
 			System.out.println("Received block of data, Block#: " + blockNum);
 			
 			// Note: 256 is the maximum size of a 16 bit number.
@@ -232,8 +218,7 @@ public class ServerThread extends Thread{
 				}	
 			}
 			
-			// There might be a more efficient method than this.
-			byte[] dataBlock = Arrays.copyOfRange(receivedData, 4, receivedData.length); // 4 is where the data starts, after opcode + blockNumber
+			byte[] dataBlock = dp.getDataBlock();
 			
 			// Write dataBlock to file
 			out.write(dataBlock);
@@ -247,27 +232,5 @@ public class ServerThread extends Thread{
 		}
 		out.close();
 		sendReceiveSocket.close();
-	}
-	private int getBlockNumberInt(byte[] data) {
-		int blockNum;
-		// Check opcodes
-		
-		// Big Endian 
-		blockNum = data[2];
-		blockNum <<= 8;
-		blockNum |= data[3];
-		
-		return blockNum;
-	}
-	
-	private byte[] createAck(int blockNum) {
-		byte[] ack = new byte[4];
-		ack[0] = ackOP[0]; //
-		ack[1] = ackOP[1]; // Opcode
-		byte[] bn = convertBlockNumberByteArr(blockNum);
-		ack[2] = bn[0];
-		ack[3] = bn[1];
-		
-		return ack;
 	}
 }

@@ -15,13 +15,6 @@ import java.util.Arrays;
 import java.util.Scanner;
 
 public class Client {
-	// Opcodes
-	private static final byte[] readReqOP = {0, 1};
-	private static final byte[] writeReqOP = {0, 2};
-	private static final byte[] dataOP = {0, 3};
-	private static final byte[] ackOP = {0, 4};
-	private static final byte[] errorOP = {0, 5};
-	
 	private boolean testMode = false;
 	private int wellKnownPort;
 	DatagramPacket sendPacket, receivePacket;
@@ -52,12 +45,13 @@ public class Client {
 	}
 
 	private void sendRequest(byte[] reqType, String filename, String mode) throws UnknownHostException {
-		byte[] message = formatRequest(reqType, filename, mode);
+		RequestPacket p = new RequestPacket(reqType, filename, mode);
+		byte[] message = p.encode();
 		
-		DatagramPacket requestPacket = new DatagramPacket(message, message.length, InetAddress.getLocalHost(), wellKnownPort);
+		DatagramPacket request = new DatagramPacket(message, message.length, InetAddress.getLocalHost(), wellKnownPort);
 		
 		try {
-			sendAndReceiveSocket.send(requestPacket);
+			sendAndReceiveSocket.send(request);
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
@@ -78,7 +72,7 @@ public class Client {
 		
 		System.out.println("Initiating read request with file " + filename);
 		
-		sendRequest(readReqOP, filename, mode);
+		sendRequest(RequestPacket.readOpcode, filename, mode);
 		byte[] receivedData;
 		byte[] receivedOpcode;
 		int currentBlockNumber = 1;
@@ -116,18 +110,20 @@ public class Client {
 			receivedOpcode = Arrays.copyOf(receivedData, 2);
 
 			
-			if (Arrays.equals(receivedOpcode, errorOP)){
-				// Determine error code.
+			if (Arrays.equals(receivedOpcode, ErrorPacket.opcode)){
+				ErrorPacket ep = new ErrorPacket(receivedData);
+				//ep.getErrorCode() 
 				// Handle error.
 			}
 			// The received packet should be an DATA packet at this point, and this have the Opcode defined in dataOP.
 			// If it is not an error packet or an DATA packet, something happened (these cases are in later iterations).
-			else if (!Arrays.equals(receivedOpcode, dataOP)) {
+			else if (!Arrays.equals(receivedOpcode, DataPacket.opcode)) {
 				// Do nothing special for Iteration 2.
 			}
-
 			
-			int blockNum = getBlockNumberInt(receivedData);
+			DataPacket dp = new DataPacket(receivedData);
+			
+			int blockNum = dp.getBlockNum();
 			System.out.println("Received block of data, Block#: " + currentBlockNumber);
 			
 			// Note: 256 is the maximum size of a 16 bit number.
@@ -143,7 +139,7 @@ public class Client {
 					System.exit(1);
 				}
 			}
-			byte[] dataBlock = Arrays.copyOfRange(receivedData, 4, receivedData.length); // 4 is where the data starts, after opcode + blockNumber
+			byte[] dataBlock = dp.getDataBlock();
 			
 			// Write dataBlock to file
 			try{
@@ -164,10 +160,10 @@ public class Client {
 			
 			System.out.println("Sending Ack...");
 			// Send ack back
-			byte[] ack = createAck(blockNum);
+			AckPacket ap = new AckPacket(blockNum);
 			
 			// Initial request was sent to wellKnownPort, but steady state file transfer should happen on another port.
-			sendPacket = new DatagramPacket(ack, ack.length, InetAddress.getLocalHost(), receivePacket.getPort());
+			sendPacket = new DatagramPacket(ap.encode(), ap.encode().length, InetAddress.getLocalHost(), receivePacket.getPort());
 			sendAndReceiveSocket.send(sendPacket);
 			TFTPInfoPrinter.printSent(sendPacket);
 			currentBlockNumber++;
@@ -204,7 +200,7 @@ public class Client {
 			 in = new BufferedInputStream(new FileInputStream("ClientFiles/" + filename));
 		}
 		
-		sendRequest(writeReqOP, filename, mode);
+		sendRequest(RequestPacket.writeOpcode, filename, mode);
 		
 		while (true) {
 			// receive ACK from previous dataBlock
@@ -225,23 +221,25 @@ public class Client {
 				{
 					throw new IOException();
 				}
-			}			TFTPInfoPrinter.printReceived(receivePacket);
+			}			
+			TFTPInfoPrinter.printReceived(receivePacket);
 			
 			receivedData = Arrays.copyOf(receivePacket.getData(), receivePacket.getLength());
 			receivedOpcode = Arrays.copyOf(receivedData, 2);
 			
-			if (Arrays.equals(receivedOpcode, errorOP)){
+			if (Arrays.equals(receivedOpcode, ErrorPacket.opcode)){
 				// Determine error code.
 				// Handle error.
 			}
 			// The received packet should be an ACK packet at this point, and this have the Opcode defined in ackOP.
 			// If it is not an error packet or an ACK packet, something happened (these cases are in later iterations).
-			else if (!Arrays.equals(receivedOpcode, ackOP)) {
+			else if (!Arrays.equals(receivedOpcode, AckPacket.opcode)) {
 				// Do nothing special for Iteration 2.
 			}
 			
+			AckPacket ap = new AckPacket(receivedData);
 			// need block number
-			int blockNum = getBlockNumberInt(receivedData);
+			int blockNum = ap.getBlockNum();
 			
 			// Note: 256 is the maximum size of a 16 bit number.
 			// blockNum is an unsigned number, represented as a 2s complement it will appear to go from 127 to -128
@@ -267,7 +265,8 @@ public class Client {
 			if (bytesRead == -1) bytesRead = 0;
 			dataBlock = Arrays.copyOf(dataBlock, bytesRead);
 			
-			byte[] sendData = formatData(dataBlock, currentBlockNumber);
+			DataPacket dp = new DataPacket(currentBlockNumber, dataBlock);
+			byte[] sendData = dp.encode();
 			// Initial request was sent to wellKnownPort, but steady state file transfer should happen on another port.
 			sendPacket = new DatagramPacket(sendData, sendData.length, InetAddress.getLocalHost(), receivePacket.getPort());
 			sendAndReceiveSocket.send(sendPacket);
@@ -280,86 +279,10 @@ public class Client {
 		in.close();
 	}
 	
-	private byte[] createAck(int blockNum) {
-		byte[] ack = new byte[4];
-		ack[0] = ackOP[0]; //
-		ack[1] = ackOP[1]; // Opcode
-		byte[] bn = convertBlockNumberByteArr(blockNum);
-		ack[2] = bn[0];
-		ack[3] = bn[1];
-		
-		return ack;
-	}
 	
-	private int getBlockNumberInt(byte[] data) {
-		int blockNum;
-		// Check opcodes
-		
-		// Big Endian 
-		blockNum = data[2];
-		blockNum <<= 8;
-		blockNum |= data[3];
-		// 
-		return blockNum;
-	}
-	private byte[] convertBlockNumberByteArr(int blockNumber) {
-		return new byte[] {(byte)((blockNumber >> 8) & 0xFF), (byte)(blockNumber & 0xFF)};
-	}
 	public void shutdown() {
 		sendAndReceiveSocket.close();
 		System.exit(1);
-	}
-	
-	
-	/**
-	 * 
-	 * @param reqType
-	 * @param filename
-	 * @param mode
-	 * @return
-	 */
-	private byte[] formatRequest(byte[] reqType, String filename, String mode) {
-		byte[] request = new byte[reqType.length + filename.length() + mode.length() + 2]; // +2 for the zero byte after filename and after mode.
-		byte[] filenameData = filename.getBytes();
-		byte[] modeData = mode.toLowerCase().getBytes();
-		int i, j, k;
-		
-		for (i = 0; i < reqType.length; i++) {
-			request[i] = reqType[i];
-		}
-
-		for (j = 0; j < filenameData.length; j++) {
-			request[i + j] = filenameData[j];
-		}
-		request[i + j] = 0; // zero byte after filename.
-		j++; 
-		for (k = 0; k < modeData.length; k++) {
-			request[i + j + k] = modeData[k];
-		}
-		
-		request[i + j + k] = 0; // final zero byte.
-
-		return request;
-	}
-	
-	private byte[] formatData(byte[] data, int blockNumber) {
-		
-		byte[] formatted = new byte[data.length + 4]; // +4 for opcode and datablock number (2 bytes each)
-		byte[] blockNumData = convertBlockNumberByteArr(blockNumber);
-		int i;
-		
-		// opcode
-		formatted[0] = dataOP[0];
-		formatted[1] = dataOP[1];
-		// blockNumber
-		formatted[2] = blockNumData[0];
-		formatted[3] = blockNumData[1];
-		
-		for (i = 0; i < data.length; i++) {
-			formatted[i + 4] = data[i];
-		}
-
-		return formatted;
 	}
 	
 	public static void main(String args[]) {
