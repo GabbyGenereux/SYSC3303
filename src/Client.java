@@ -67,7 +67,7 @@ public class Client {
 			byte[] err = errPckt.encode();
 			sendPacket = new DatagramPacket(err, err.length, InetAddress.getLocalHost(), wellKnownPort);
 			sendAndReceiveSocket.send(sendPacket);
-			System.exit(1);
+			return;
 		}
 		
 		System.out.println("Initiating read request with file " + filename);
@@ -152,7 +152,7 @@ public class Client {
 				byte[] err = errPckt.encode();
 				sendPacket = new DatagramPacket(err, err.length, InetAddress.getLocalHost(), receivePacket.getPort());
 				sendAndReceiveSocket.send(sendPacket);
-				System.exit(1);
+				return;
 			}
 			
 			// At this point a file IO may have occurred and an error packet needs to be sent.
