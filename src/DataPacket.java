@@ -15,6 +15,7 @@ public class DataPacket {
 		blockNum = data[2];
 		blockNum <<= 8;
 		blockNum |= data[3];
+		dataBlock = new byte[data.length - 4];
 		System.arraycopy(data, 4, dataBlock, 0, data.length - 4);
 	}
 	
@@ -28,7 +29,7 @@ public class DataPacket {
 		data[2] = (byte)((blockNum >> 8) & 0xFF);
 		data[3] = (byte)(blockNum & 0xFF);
 		
-		System.arraycopy(dataBlock, 0, dataBlock, 4, dataBlock.length);
+		System.arraycopy(dataBlock, 0, data, 4, dataBlock.length);
 		
 	}
 	
