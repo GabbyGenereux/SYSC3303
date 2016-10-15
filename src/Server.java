@@ -103,6 +103,7 @@ public class Server {
 		}
 		Server server = new Server();
 		server.receiveAndSend();
+		s.close();
 	}
 	
 }

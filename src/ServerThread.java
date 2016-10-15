@@ -17,7 +17,7 @@ public class ServerThread extends Thread{
 	private static final int blockSize = 512;
 	
 	private DatagramPacket receivePacket, sendPacket;
-	private DatagramSocket sendSocket, sendReceiveSocket;
+	private DatagramSocket sendReceiveSocket;
 	private String file;
 	private byte[] receivedData;
 	
@@ -60,6 +60,7 @@ public class ServerThread extends Thread{
 	//should be called after the initial request has been read
 	void writeToClient(String filename) throws IOException
 	{
+		System.out.println("Writing to client: " + filename);
 		//Create socket to send out packets and receive ACKs
 		try 
 		{
@@ -151,7 +152,6 @@ public class ServerThread extends Thread{
 			
 			if (bytesRead == -1) bytesRead = 0; 
 			dataBlock = Arrays.copyOf(dataBlock, bytesRead);
-			System.out.println("Bytes read: " + bytesRead);
 			
 			DataPacket dp = new DataPacket(currentBlockNumber, dataBlock);
 			data = dp.encode();
@@ -225,6 +225,7 @@ public class ServerThread extends Thread{
 			currentBlockNumber++;
 		}
 		in.close();
+		System.out.println("Transfer complete");
 	}
 	
 	public void readFromClient(String filename) throws IOException{
@@ -260,8 +261,6 @@ public class ServerThread extends Thread{
 		BufferedOutputStream out = new BufferedOutputStream(new FileOutputStream("ServerFiles/" + filename));
 		
 		while (true) {
-			
-			System.out.println("Sending Ack...");
 			// Send ack back
 			AckPacket ap = new AckPacket(currentBlockNumber);
 			byte[] ack = ap.encode();
@@ -274,7 +273,6 @@ public class ServerThread extends Thread{
 			
 			receivedData = new byte[bufferSize];
 			receivePacket = new DatagramPacket(receivedData, receivedData.length);
-			System.out.println("Waiting for block of data...");
 			// receive block
 			sendReceiveSocket.receive(receivePacket);
 			TFTPInfoPrinter.printReceived(receivePacket);
@@ -323,14 +321,9 @@ public class ServerThread extends Thread{
 			}
 			catch(IOException e)
 			{
-				Throwable cause = e;
-				while(cause.getCause() != null) {
-				    cause = cause.getCause();
-				}
-				System.err.println(cause.getMessage());
 				String errorString;
 				ErrorPacket ep;
-				if(cause instanceof FileNotFoundException && e.getMessage().contains("(Access is denied)"))
+				if(e.getMessage().contains("(Access is denied)"))
 				{ // Hacky solution to get determine if invalid file permissions.
 					errorString = "Server could not write " + '"' + filename + '"' + ".";
 					ep = new ErrorPacket((byte) 2, errorString);
@@ -350,11 +343,16 @@ public class ServerThread extends Thread{
 				}
 				catch (IOException e2)
 				{
+					System.out.println("Error on send...");
 					e2.printStackTrace();
 					System.exit(1);
 				}
 				TFTPInfoPrinter.printSent(sendPacket);
-				out.close();
+				try {
+					out.close();
+				} catch (IOException e2) {
+					
+				}
 				return;
 			}
 			
@@ -367,5 +365,7 @@ public class ServerThread extends Thread{
 		}
 		out.close();
 		sendReceiveSocket.close();
+		System.out.println("Transfer complete");
 	}
+	
 }

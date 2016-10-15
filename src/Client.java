@@ -2,7 +2,6 @@ import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
-import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.net.DatagramPacket;
@@ -10,7 +9,6 @@ import java.net.DatagramSocket;
 import java.net.InetAddress;
 import java.net.SocketException;
 import java.net.UnknownHostException;
-import java.nio.file.AccessDeniedException;
 import java.util.Arrays;
 import java.util.Scanner;
 
@@ -63,55 +61,37 @@ public class Client {
 	public void readFromServer(String filename, String mode) throws IOException{		
 		System.out.println("Initiating read request with file " + filename);
 		
-		sendRequest(RequestPacket.readOpcode, filename, mode);
+		
 		byte[] receivedData;
 		byte[] receivedOpcode;
 		int currentBlockNumber = 1;
 		
-		BufferedOutputStream out = new BufferedOutputStream(new FileOutputStream("ClientFiles/" + filename));
+		if(new File("ClientFiles/" + filename).exists()){
+			System.err.println('"' + filename + '"' + " already exists on Client.");
+			return;
+		}
+		BufferedOutputStream out = null;
+		
+		try {
+			out = new BufferedOutputStream(new FileOutputStream("ClientFiles/" + filename));
+		} catch (IOException e) {
+			if (e.getMessage().contains("(Access is denied)"));
+			System.err.println("Access to ClientFiles folder was denied");
+			return;
+		}
+		
+		
+		sendRequest(RequestPacket.readOpcode, filename, mode);
 		
 		while (true) {
-			receivedData = new byte[bufferSize]; // opcode + blockNumber + 512 bytes of data
+			receivedData = new byte[bufferSize];
 			receivePacket = new DatagramPacket(receivedData, receivedData.length);
-			System.out.println("Waiting for block of data...");
 			// receive block
 			try{
 				sendAndReceiveSocket.receive(receivePacket);
-			}catch(IOException e)
+			} catch(IOException e)
 			{
-				byte[] data = receivePacket.getData();
-				if(data[0] == 0 && data[1] == 5)
-				{
-					if(e.getCause() instanceof FileNotFoundException)
-					{
-						String msg = "Error: File not found";
-						System.err.println(msg);
-						ErrorPacket errPckt = new ErrorPacket((byte) 1, msg);
-						byte[] err = errPckt.encode();
-						sendPacket = new DatagramPacket(err, err.length, InetAddress.getLocalHost(), receivePacket.getPort());
-						sendAndReceiveSocket.send(sendPacket);
-						return;				
-					}
-					else if(e.getCause() instanceof AccessDeniedException)
-					{
-						String msg = "Error: Access denied";
-						System.err.println(msg);
-						ErrorPacket errPckt = new ErrorPacket((byte) 2, msg);
-						byte[] err = errPckt.encode();
-						sendPacket = new DatagramPacket(err, err.length, InetAddress.getLocalHost(), receivePacket.getPort());
-						sendAndReceiveSocket.send(sendPacket);
-						return;				
-					}
-					else
-					{
-						throw new IOException();
-					}
-				}
-				else
-				{
-					throw new IOException();
-				}
-				
+							
 			}
 			TFTPInfoPrinter.printReceived(receivePacket);
 			
@@ -122,9 +102,18 @@ public class Client {
 			
 			if (Arrays.equals(receivedOpcode, ErrorPacket.opcode)){
 				ErrorPacket ep = new ErrorPacket(receivedData);
-				System.out.println("Error code: " + ep.getErrorCode() + ": " + ep.getErrorMessage());
-				
+				System.err.println(ep.getErrorMessage());
 				// Handle error.
+				
+				// File not found on server
+				if (ep.getErrorCode() == 1){
+					
+				}
+				// Access denied on server
+				else if (ep.getErrorCode() == 2) {
+					
+				}
+				out.close();
 				return;
 			}
 			// The received packet should be an DATA packet at this point, and this have the Opcode defined in dataOP.
@@ -164,13 +153,14 @@ public class Client {
 				byte[] err = errPckt.encode();
 				sendPacket = new DatagramPacket(err, err.length, InetAddress.getLocalHost(), receivePacket.getPort());
 				sendAndReceiveSocket.send(sendPacket);
+				try {
+					out.close();
+				} catch (IOException e2) {
+					
+				}
 				return;
 			}
-			
-			// At this point a file IO may have occurred and an error packet needs to be sent.
-			
-			
-			System.out.println("Sending Ack...");
+
 			// Send ack back
 			AckPacket ap = new AckPacket(blockNum);
 			
@@ -193,24 +183,56 @@ public class Client {
 	public void writeToServer(String filename, String mode) throws IOException {
 		
 		int currentBlockNumber = 0;
-		BufferedInputStream in;
+		BufferedInputStream in = null;
 		byte[] receivedData;
 		byte[] receivedOpcode;
-		// It's a full path
-		if (filename.contains("\\") || filename.contains("/")) {
-			 in = new BufferedInputStream(new FileInputStream(filename));
-			 // for sending to Server
-			 int idx = filename.lastIndexOf('\\');
-			 if (idx == -1) {
-				 idx = filename.lastIndexOf('/');
-			 } 
-			 filename = filename.substring(idx+1);
-			 
+		
+		
+		
+		try {
+			// It's a full path
+			if (filename.contains("\\") || filename.contains("/")) {
+				
+				if(!(new File(filename).exists())){
+					System.err.println(filename + " does not exist on Client.");
+					return;
+				}
+				
+				in = new BufferedInputStream(new FileInputStream(filename));
+				// for sending to Server
+				int idx = filename.lastIndexOf('\\');
+				if (idx == -1) {
+					idx = filename.lastIndexOf('/');
+				} 
+				filename = filename.substring(idx+1);
+				 
+			}
+			// It's in the default ClientFiles folder
+			else {
+				
+
+				if(!(new File("ClientFiles/" + filename).exists())){
+					System.err.println(filename + " does not exist on Client.");
+					return;
+				}
+				
+				in = new BufferedInputStream(new FileInputStream("ClientFiles/" + filename));
+				
+				
+			}
+		} catch (IOException e) {
+			// Don't bother sending the server any error packets as the request hasn't been sent and server doesn't need to know
+			// Print out error information/handle error.
+			
+			if (e.getMessage().contains("(Access is denied)")) {
+				System.err.println("Cound not read " + filename + " on Client");
+			}
+			else {
+				e.printStackTrace();
+			}
+			return;
 		}
-		// It's in the default ClientFiles folder
-		else {
-			 in = new BufferedInputStream(new FileInputStream("ClientFiles/" + filename));
-		}
+		
 		
 		sendRequest(RequestPacket.writeOpcode, filename, mode);
 		
@@ -218,30 +240,12 @@ public class Client {
 			// receive ACK from previous dataBlock
 			byte[] data = new byte[bufferSize];
 			receivePacket = new DatagramPacket(data, data.length);
-			System.out.println("Client is waiting to receive ACK from server");
 			try
 			{
 				sendAndReceiveSocket.receive(receivePacket);
-			}catch(IOException e)
+			} catch(IOException e)
 			{
-				byte[] data2 = receivePacket.getData();
-				if(data2[0] == 0 && data2[1] == 5)
-				{
-					if(e.getCause() instanceof AccessDeniedException)
-					{
-						String msg = "Error: Access denied";
-						System.err.println(msg);
-						ErrorPacket errPckt = new ErrorPacket((byte) 2, msg);
-						byte[] err = errPckt.encode();
-						sendPacket = new DatagramPacket(err, err.length, InetAddress.getLocalHost(), receivePacket.getPort());
-						sendAndReceiveSocket.send(sendPacket);
-						return;			
-					}
-					else
-					{
-						throw new IOException();
-					}
-				}
+				e.printStackTrace();
 			}			
 			TFTPInfoPrinter.printReceived(receivePacket);
 			
@@ -249,8 +253,19 @@ public class Client {
 			receivedOpcode = Arrays.copyOf(receivedData, 2);
 			
 			if (Arrays.equals(receivedOpcode, ErrorPacket.opcode)){
-				// Determine error code.
-				// Handle error.
+				ErrorPacket ep = new ErrorPacket(receivedData);
+				System.err.println(ep.getErrorMessage());
+				// Access denied, can't write to server
+				if (ep.getErrorCode() == 2) {
+					
+				}
+				// File already exits (on server)
+				else if (ep.getErrorCode() == 6) {
+					
+				}
+				
+				in.close();
+				return;
 			}
 			// The received packet should be an ACK packet at this point, and this have the Opcode defined in ackOP.
 			// If it is not an error packet or an ACK packet, something happened (these cases are in later iterations).
@@ -340,14 +355,9 @@ public class Client {
 			try {
 				if (action.equals("r") || action.equals("read")) {
 					//check if a file with that name exists on the client side
-					File f = new File("ClientFiles/" + fileName);
-					if(f.exists()){
-						System.out.println(fileName +" already exists on client side");
-					}
-					else{
-						c.readFromServer(fileName, "octet");
-						System.out.println("Transfer complete");
-					}
+					c.readFromServer(fileName, "octet");
+					System.out.println("Transfer complete");
+
 				}
 				else if (action.equals("w") || action.equals("write")) {
 					c.writeToServer(fileName, "octet");
