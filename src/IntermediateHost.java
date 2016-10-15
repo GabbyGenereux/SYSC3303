@@ -5,6 +5,7 @@ import java.net.InetAddress;
 import java.net.SocketException;
 import java.net.UnknownHostException;
 import java.util.Arrays;
+import java.util.Scanner;
 
 public class IntermediateHost {
 	
@@ -107,6 +108,16 @@ public class IntermediateHost {
 	
 	public static void main(String args[])
 	{
+		System.out.println("Choose whether you would like to run in quiet or verbose mode (q/v):");
+		Scanner s = new Scanner(System.in);
+		String response = s.nextLine();
+		
+		if (response.equals("q")) {
+			TFTPInfoPrinter.setVerboseMode(false);
+		}
+		else if (response.equals("n")) {
+			TFTPInfoPrinter.setVerboseMode(true);
+		}
 		IntermediateHost host = new IntermediateHost();
 	
 		host.receiveAndSend();
