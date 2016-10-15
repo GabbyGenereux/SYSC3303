@@ -111,7 +111,7 @@ public class IntermediateHost {
 		System.out.println("Choose whether you would like to run in quiet or verbose mode (q/v):");
 		Scanner s = new Scanner(System.in);
 		String response = s.nextLine();
-		
+		s.close();
 		if (response.equals("q")) {
 			TFTPInfoPrinter.setVerboseMode(false);
 		}
@@ -119,7 +119,7 @@ public class IntermediateHost {
 			TFTPInfoPrinter.setVerboseMode(true);
 		}
 		IntermediateHost host = new IntermediateHost();
-	
+		
 		host.receiveAndSend();
 	}
 }
