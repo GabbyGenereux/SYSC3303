@@ -79,29 +79,39 @@ public class Client {
 				sendAndReceiveSocket.receive(receivePacket);
 			}catch(IOException e)
 			{
-				if(e.getCause() instanceof FileNotFoundException)
+				byte[] data = receivePacket.getData();
+				if(data[0] == 0 && data[1] == 5)
 				{
-					String msg = "Error: File not found";
-					System.err.println(msg);
-					ErrorPacket errPckt = new ErrorPacket((byte) 1, msg);
-					byte[] err = errPckt.encode();
-					sendPacket = new DatagramPacket(err, err.length, InetAddress.getLocalHost(), receivePacket.getPort());
-					sendAndReceiveSocket.send(sendPacket);
-					return;				}
-				else if(e.getCause() instanceof AccessDeniedException)
-				{
-					String msg = "Error: Access denied";
-					System.err.println(msg);
-					ErrorPacket errPckt = new ErrorPacket((byte) 2, msg);
-					byte[] err = errPckt.encode();
-					sendPacket = new DatagramPacket(err, err.length, InetAddress.getLocalHost(), receivePacket.getPort());
-					sendAndReceiveSocket.send(sendPacket);
-					return;				
+					if(e.getCause() instanceof FileNotFoundException)
+					{
+						String msg = "Error: File not found";
+						System.err.println(msg);
+						ErrorPacket errPckt = new ErrorPacket((byte) 1, msg);
+						byte[] err = errPckt.encode();
+						sendPacket = new DatagramPacket(err, err.length, InetAddress.getLocalHost(), receivePacket.getPort());
+						sendAndReceiveSocket.send(sendPacket);
+						return;				
+					}
+					else if(e.getCause() instanceof AccessDeniedException)
+					{
+						String msg = "Error: Access denied";
+						System.err.println(msg);
+						ErrorPacket errPckt = new ErrorPacket((byte) 2, msg);
+						byte[] err = errPckt.encode();
+						sendPacket = new DatagramPacket(err, err.length, InetAddress.getLocalHost(), receivePacket.getPort());
+						sendAndReceiveSocket.send(sendPacket);
+						return;				
+					}
+					else
+					{
+						throw new IOException();
+					}
 				}
 				else
 				{
 					throw new IOException();
 				}
+				
 			}
 			TFTPInfoPrinter.printReceived(receivePacket);
 			
@@ -214,19 +224,23 @@ public class Client {
 				sendAndReceiveSocket.receive(receivePacket);
 			}catch(IOException e)
 			{
-				if(e.getCause() instanceof AccessDeniedException)
+				byte[] data2 = receivePacket.getData();
+				if(data2[0] == 0 && data2[1] == 5)
 				{
-					String msg = "Error: Access denied";
-					System.err.println(msg);
-					ErrorPacket errPckt = new ErrorPacket((byte) 2, msg);
-					byte[] err = errPckt.encode();
-					sendPacket = new DatagramPacket(err, err.length, InetAddress.getLocalHost(), receivePacket.getPort());
-					sendAndReceiveSocket.send(sendPacket);
-					return;			
-				}
-				else
-				{
-					throw new IOException();
+					if(e.getCause() instanceof AccessDeniedException)
+					{
+						String msg = "Error: Access denied";
+						System.err.println(msg);
+						ErrorPacket errPckt = new ErrorPacket((byte) 2, msg);
+						byte[] err = errPckt.encode();
+						sendPacket = new DatagramPacket(err, err.length, InetAddress.getLocalHost(), receivePacket.getPort());
+						sendAndReceiveSocket.send(sendPacket);
+						return;			
+					}
+					else
+					{
+						throw new IOException();
+					}
 				}
 			}			
 			TFTPInfoPrinter.printReceived(receivePacket);
