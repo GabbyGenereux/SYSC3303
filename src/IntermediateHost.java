@@ -11,6 +11,9 @@ public class IntermediateHost {
 	
 	DatagramSocket receiveSocket, sendAndReceiveSocket;
 	DatagramPacket receivePacket, sendPacket;
+	private int mode = 0;
+	private byte[] code = new byte[2];
+	private int delay = 0;;
 	
 	public IntermediateHost()
 	{
@@ -27,6 +30,8 @@ public class IntermediateHost {
 	public void receiveAndSend()
 	{
 		int clientPort, serverPort = 69;
+		HostInput errorModeCommand = new HostInput("Host Input Handler", this);
+		errorModeCommand.start();
 		while(true)
 		{
 			byte data[] = new byte[516];
@@ -111,7 +116,7 @@ public class IntermediateHost {
 		System.out.println("Choose whether you would like to run in quiet or verbose mode (q/v):");
 		Scanner s = new Scanner(System.in);
 		String response = s.nextLine();
-		s.close();
+		//s.close(); //can't close without interfering with the HostInput
 		if (response.equals("q")) {
 			TFTPInfoPrinter.setVerboseMode(false);
 		}
@@ -119,7 +124,20 @@ public class IntermediateHost {
 			TFTPInfoPrinter.setVerboseMode(true);
 		}
 		IntermediateHost host = new IntermediateHost();
-		
+		//try{
+		//	Thread.sleep(100);
+		//}catch(InterruptedException e){}
 		host.receiveAndSend();
+	}
+	
+	public void setMode(int m, byte[] c, int d){
+		mode = m;
+		code = c;
+		delay = d;
+		System.out.print("Mode set to " + m + " for packet [ ");
+		for(int i = 0; i < c.length; i++){
+			System.out.print(c[i] + " ");
+		}
+		System.out.println("]" + "with delay of " + d);
 	}
 }
