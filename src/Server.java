@@ -40,7 +40,6 @@ public class Server {
 	{
 		receiveSocket.close();
 		System.out.println("Socket closed, server will no longer accept requests");
-		while(true){} //keep the process open to allow existing transfers to finish
 	}
 	/*
 	 * void receiveAndSend
