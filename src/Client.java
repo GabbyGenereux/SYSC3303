@@ -178,6 +178,7 @@ public class Client {
 			}
 		}
 		out.close();
+		System.out.println("Transfer complete");
 	}
 	
 	public void writeToServer(String filename, String mode) throws IOException {
@@ -313,6 +314,7 @@ public class Client {
 		}
 		
 		in.close();
+		System.out.println("Transfer complete");
 	}
 	
 	
@@ -356,12 +358,10 @@ public class Client {
 				if (action.equals("r") || action.equals("read")) {
 					//check if a file with that name exists on the client side
 					c.readFromServer(fileName, "octet");
-					System.out.println("Transfer complete");
 
 				}
 				else if (action.equals("w") || action.equals("write")) {
 					c.writeToServer(fileName, "octet");
-					System.out.println("Transfer complete");
 				}
 				else {
 					System.out.println("Invalid command");
