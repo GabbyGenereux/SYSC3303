@@ -1,7 +1,15 @@
 SYSC3303 Project Iteration 1 Responsibilities
 Team 9: 
+Iteration 1:
 Gabrielle: Read from File, Write to File, Add Interaction with User
 Henri: Send to Client, Receive from Client, Graceful Shutdown, 
 Joshua: Confirm correct packets are being made, Send to Server, Receive from Server
 Travis: Add Multithreading (Iteration 0)
 Iain: UML Class Diagram, UCMs, README, Responsibilities
+
+Iteration 2:
+Gabrielle: Handling error codes 1 and 2 on Client side
+Henri: Diagrams
+Joshua: Fix issues from Iteration 1, update README, Handling error codes 1 and 2 on Server side
+Travis: Handling errors 3 and 6 on Server side
+Iain: Handing errors 3 and 6 on Client side

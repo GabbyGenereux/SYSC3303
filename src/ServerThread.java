@@ -1,5 +1,6 @@
 import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
+import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
@@ -12,41 +13,35 @@ import java.util.Arrays;
 
 
 public class ServerThread extends Thread{
-	DatagramPacket receivePacket, sendPacket;
-	DatagramSocket sendSocket, sendReceiveSocket;
-	String file;
-	byte[] data;
+	private static final int bufferSize = 516;
+	private static final int blockSize = 512;
 	
-	private byte[] readReq = {0, 1};
-	private byte[] writeReq = {0, 2};
+	private DatagramPacket receivePacket, sendPacket;
+	private DatagramSocket sendReceiveSocket;
+	private String file;
+	private byte[] receivedData;
 	
 	public ServerThread(String name, DatagramPacket receivedPacket, byte[] receivedData){
 		super(name);
 		receivePacket = receivedPacket;
-		data = receivedData;
-		StringBuilder sb = new StringBuilder();
-		int i = 0;
-		while(data[i+2] != 0x00) {
-			sb.append((char)data[i+2]);
-			i++;
-		}
-		file = sb.toString();
-		
+		this.receivedData = receivedData;
+		RequestPacket rp = new RequestPacket(receivedData);
+		file = rp.getFilename();
 	}
 	
 	public void run(){
 
 		// Determination of type of packet received
-		byte[] opcode = {data[0], data[1]};
+		byte[] opcode = {receivedData[0], receivedData[1]};
 		
-		if (Arrays.equals(opcode, readReq)) {
+		if (Arrays.equals(opcode, RequestPacket.readOpcode)) {
 			try {
 				writeToClient(file);
 			} catch (IOException e) {
 				e.printStackTrace();
 			}
 		}
-		else if (Arrays.equals(opcode, writeReq)){
+		else if (Arrays.equals(opcode, RequestPacket.writeOpcode)){
 			try {
 				readFromClient(file);
 			} catch (IOException e) {
@@ -61,15 +56,11 @@ public class ServerThread extends Thread{
 		}
 	}
 	
-	private byte[] convertBlockNumberByteArr(int blockNumber) 
-	{
-		return new byte[] {(byte)((blockNumber >> 8) & 0xFF), (byte)(blockNumber & 0xFF)};
-	}
-	
 	//send the file from the server to the client, given the filename (for a client's read request)
 	//should be called after the initial request has been read
 	void writeToClient(String filename) throws IOException
 	{
+		System.out.println("Writing to client: " + filename);
 		//Create socket to send out packets and receive ACKs
 		try 
 		{
@@ -83,25 +74,90 @@ public class ServerThread extends Thread{
 		
 		int currentBlockNumber = 1; //starting with the first block of 512 bytes
 		byte[] data;
-		BufferedInputStream in = new BufferedInputStream(new FileInputStream("ServerFiles/" + filename));
+		byte[] opcode;
+		BufferedInputStream in = null;
+		try {
+			in = new BufferedInputStream(new FileInputStream("ServerFiles/" + filename));
+		} 
+		catch(IOException e)
+		{
+			Throwable cause = e;
+			while(cause.getCause() != null) {
+			    cause = cause.getCause();
+			}
+			System.err.println(cause.getMessage());
+			if(cause instanceof FileNotFoundException)
+			{
+				// Hacky solution to get determine if invalid file permissions.
+				if (e.getMessage().contains("(Access is denied)")) {
+					String errorString = "Server could not access " + '"' + filename + '"' + ".";
+					ErrorPacket ep = new ErrorPacket((byte) 2, errorString);
+					
+					System.err.println(errorString);
+					
+					// Send errorPacket
+					sendPacket = new DatagramPacket(ep.encode(), ep.encode().length, receivePacket.getAddress(), receivePacket.getPort());
+					try
+					{
+						sendReceiveSocket.send(sendPacket);
+					}
+					catch (IOException e2)
+					{
+						e2.printStackTrace();
+						System.exit(1);
+					}
+					TFTPInfoPrinter.printSent(sendPacket);
+					return;
+				}
+				else {
+					String errorString = '"' + filename + '"' + " was not found on the server.";
+					ErrorPacket ep = new ErrorPacket((byte) 1, errorString);
+					
+					System.err.println(errorString);
+					
+					// Send errorPacket
+					sendPacket = new DatagramPacket(ep.encode(), ep.encode().length, receivePacket.getAddress(), receivePacket.getPort());
+					try
+					{
+						sendReceiveSocket.send(sendPacket);
+					}
+					catch (IOException e2)
+					{
+						e2.printStackTrace();
+						System.exit(1);
+					}
+					TFTPInfoPrinter.printSent(sendPacket);
+					return;
+				}
+				
+			}
+			else
+			{
+				e.printStackTrace();
+			}
+		} 
+		
+			
+		
 		while(true)
 		{
-			data = new byte[516]; //2 bytes for opcode, 2 bytes for block number, 512 bytes for data
-			byte[] block = convertBlockNumberByteArr(currentBlockNumber); //convert the integer block number to big endian word
-			byte[] dataBlock = new byte[512];
-			data[0] = 0;
-			data[1] = 3; //DATA opcode
-			data[2] = block[0];
-			data[3] = block[1]; //block number
+			byte[] dataBlock = new byte[blockSize];
 
-			int bytesRead = in.read(dataBlock);
-			if (bytesRead == -1) bytesRead = 0; 
-			System.out.println("Bytes read: " + bytesRead);
-			System.arraycopy(dataBlock, 0, data, 4, bytesRead);
+			int bytesRead = 0;
+			try {
+				bytesRead = in.read(dataBlock);
+			} catch (IOException e) {
+				
+			}
 			
+			if (bytesRead == -1) bytesRead = 0; 
+			dataBlock = Arrays.copyOf(dataBlock, bytesRead);
+			
+			DataPacket dp = new DataPacket(currentBlockNumber, dataBlock);
+			data = dp.encode();
 			
 			//send the data to the client
-			sendPacket = new DatagramPacket(data, bytesRead + 4, receivePacket.getAddress(), receivePacket.getPort());
+			sendPacket = new DatagramPacket(data, data.length, receivePacket.getAddress(), receivePacket.getPort());
 			try
 			{
 				sendReceiveSocket.send(sendPacket);
@@ -114,7 +170,7 @@ public class ServerThread extends Thread{
 			TFTPInfoPrinter.printSent(sendPacket);
 			
 			//receive the ACK from the client
-			byte[] ack = new byte[4];
+			byte[] ack = new byte[bufferSize];
 			receivePacket = new DatagramPacket(ack, ack.length);
 			try
 			{
@@ -129,7 +185,27 @@ public class ServerThread extends Thread{
 			
 			//TODO: Need to validate ACK still
 			
-			int blockNum = getBlockNumberInt(receivePacket.getData());
+			opcode = Arrays.copyOf(receivePacket.getData(), 2);
+
+			if (Arrays.equals(opcode, ErrorPacket.opcode)){
+				// Determine error code
+				
+				ErrorPacket ep = new ErrorPacket(Arrays.copyOf(receivePacket.getData(), receivePacket.getLength()));
+				System.err.println(ep.getErrorMessage());
+				// As the server, 
+						
+				in.close();
+				return;
+			}
+			// The received packet should be an ACK packet at this point, and this have the Opcode defined in ackOP.
+			// If it is not an error packet or an ACK packet, something happened (these cases are in later iterations).
+			else if (!Arrays.equals(opcode, AckPacket.opcode)) {
+				// Do nothing special for Iteration 2.
+			}
+			byte[] dataReceived = Arrays.copyOf(receivePacket.getData(), receivePacket.getLength());
+			AckPacket ap = new AckPacket(dataReceived);
+			
+			int blockNum = ap.getBlockNum();
 			
 			// Note: 256 is the maximum size of a 16 bit number.
 			if (blockNum != currentBlockNumber ) {
@@ -144,12 +220,12 @@ public class ServerThread extends Thread{
 				}	
 			}
 			
-			
 			if (bytesRead < 512) break;
 			//get ready to send the next block of bytes
 			currentBlockNumber++;
 		}
 		in.close();
+		System.out.println("Transfer complete");
 	}
 	
 	public void readFromClient(String filename) throws IOException{
@@ -159,15 +235,35 @@ public class ServerThread extends Thread{
 		// Send ACK with blockNumber 0 ... N;
 		// Receive dataBlock (blockNumber++)
 		byte[] receivedData;
+		byte[] opcode;
 		int currentBlockNumber = 0;
+		sendReceiveSocket = new DatagramSocket();
+		if(new File("ServerFiles/" + filename).exists()){
+			String errorString = filename + " already exists on Server.";
+			ErrorPacket ep = new ErrorPacket((byte) 6, errorString);
+			System.err.println(errorString);
+			
+			// Send errorPacket
+			sendPacket = new DatagramPacket(ep.encode(), ep.encode().length, receivePacket.getAddress(), receivePacket.getPort());
+			try
+			{
+				sendReceiveSocket.send(sendPacket);
+			}
+			catch (IOException e2)
+			{
+				e2.printStackTrace();
+				System.exit(1);
+			}
+			TFTPInfoPrinter.printSent(sendPacket);
+			return;
+		}
 		
 		BufferedOutputStream out = new BufferedOutputStream(new FileOutputStream("ServerFiles/" + filename));
-		sendReceiveSocket = new DatagramSocket();
+		
 		while (true) {
-			
-			System.out.println("Sending Ack...");
 			// Send ack back
-			byte[] ack = createAck(currentBlockNumber);
+			AckPacket ap = new AckPacket(currentBlockNumber);
+			byte[] ack = ap.encode();
 			
 			// Initial request was sent to wellKnownPort, but steady state file transfer should happen on another port.
 			sendPacket = new DatagramPacket(ack, ack.length, InetAddress.getLocalHost(), receivePacket.getPort());
@@ -175,9 +271,8 @@ public class ServerThread extends Thread{
 			TFTPInfoPrinter.printSent(sendPacket);
 			currentBlockNumber++;
 			
-			receivedData = new byte[2 + 2 + 512]; // opcode + blockNumber + 512 bytes of data
+			receivedData = new byte[bufferSize];
 			receivePacket = new DatagramPacket(receivedData, receivedData.length);
-			System.out.println("Waiting for block of data...");
 			// receive block
 			sendReceiveSocket.receive(receivePacket);
 			TFTPInfoPrinter.printReceived(receivePacket);
@@ -185,7 +280,24 @@ public class ServerThread extends Thread{
 			// validate packet
 			receivedData = Arrays.copyOf(receivePacket.getData(), receivePacket.getLength());
 
-			int blockNum = getBlockNumberInt(receivedData);
+			
+			opcode = Arrays.copyOf(receivedData, 2);
+
+			if (Arrays.equals(opcode, ErrorPacket.opcode)){
+				ErrorPacket ep = new ErrorPacket(receivedData);
+				System.err.println(ep.getErrorMessage());
+				
+				out.close();
+				return;
+			}
+			// The received packet should be an DATA packet at this point, and this have the Opcode defined in ackOP.
+			// If it is not an error packet or an DATA packet, something happened (these cases are in later iterations).
+			else if (!Arrays.equals(opcode, DataPacket.opcode)) {
+				// Do nothing special for Iteration 2.
+			}
+			
+			DataPacket dp = new DataPacket(receivedData);
+			int blockNum = dp.getBlockNum();
 			System.out.println("Received block of data, Block#: " + blockNum);
 			
 			// Note: 256 is the maximum size of a 16 bit number.
@@ -201,11 +313,48 @@ public class ServerThread extends Thread{
 				}	
 			}
 			
-			// There might be a more efficient method than this.
-			byte[] dataBlock = Arrays.copyOfRange(receivedData, 4, receivedData.length); // 4 is where the data starts, after opcode + blockNumber
+			byte[] dataBlock = dp.getDataBlock();
 			
 			// Write dataBlock to file
-			out.write(dataBlock);
+			try {
+				out.write(dataBlock);
+			}
+			catch(IOException e)
+			{
+				String errorString;
+				ErrorPacket ep;
+				if(e.getMessage().contains("(Access is denied)"))
+				{ // Hacky solution to get determine if invalid file permissions.
+					errorString = "Server could not write " + '"' + filename + '"' + ".";
+					ep = new ErrorPacket((byte) 2, errorString);
+				}
+				else{
+					errorString = "Server disk full, unable to write.";
+					ep = new ErrorPacket((byte) 3, errorString);
+				}
+					
+				System.err.println(errorString);
+				
+				// Send errorPacket
+				sendPacket = new DatagramPacket(ep.encode(), ep.encode().length, receivePacket.getAddress(), receivePacket.getPort());
+				try
+				{
+					sendReceiveSocket.send(sendPacket);
+				}
+				catch (IOException e2)
+				{
+					System.out.println("Error on send...");
+					e2.printStackTrace();
+					System.exit(1);
+				}
+				TFTPInfoPrinter.printSent(sendPacket);
+				try {
+					out.close();
+				} catch (IOException e2) {
+					
+				}
+				return;
+			}
 			
 			
 			
@@ -216,27 +365,7 @@ public class ServerThread extends Thread{
 		}
 		out.close();
 		sendReceiveSocket.close();
-	}
-	private int getBlockNumberInt(byte[] data) {
-		int blockNum;
-		// Check opcodes
-		
-		// Big Endian 
-		blockNum = data[2];
-		blockNum <<= 8;
-		blockNum |= data[3];
-		
-		return blockNum;
+		System.out.println("Transfer complete");
 	}
 	
-	private byte[] createAck(int blockNum) {
-		byte[] ack = new byte[4];
-		ack[0] = 0; //
-		ack[1] = 4; // Opcode
-		byte[] bn = convertBlockNumberByteArr(blockNum);
-		ack[2] = bn[0];
-		ack[3] = bn[1];
-		
-		return ack;
-	}
 }

@@ -1,5 +1,6 @@
 import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
+import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -12,12 +13,12 @@ import java.util.Arrays;
 import java.util.Scanner;
 
 public class Client {
-	private byte[] readReq = {0, 1};
-	private byte[] writeReq = {0, 2};
+	private static final int bufferSize = 516;
+	private static final int blockSize = 512;
 	private boolean testMode = false;
 	private int wellKnownPort;
-	DatagramPacket sendPacket, receivePacket;
-	DatagramSocket sendAndReceiveSocket;
+	private DatagramPacket sendPacket, receivePacket;
+	private DatagramSocket sendAndReceiveSocket;
 
 	public boolean isTestMode() {
 		return testMode;
@@ -44,39 +45,87 @@ public class Client {
 	}
 
 	private void sendRequest(byte[] reqType, String filename, String mode) throws UnknownHostException {
-		byte[] message = formatRequest(reqType, filename, mode);
+		RequestPacket p = new RequestPacket(reqType, filename, mode);
+		byte[] message = p.encode();
 		
-		DatagramPacket requestPacket = new DatagramPacket(message, message.length, InetAddress.getLocalHost(), wellKnownPort);
+		DatagramPacket request = new DatagramPacket(message, message.length, InetAddress.getLocalHost(), wellKnownPort);
 		
 		try {
-			sendAndReceiveSocket.send(requestPacket);
+			sendAndReceiveSocket.send(request);
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
+		TFTPInfoPrinter.printSent(request);
 	}
 	
-	public void readFromServer(String filename, String mode) throws IOException{
+	public void readFromServer(String filename, String mode) throws IOException{		
 		System.out.println("Initiating read request with file " + filename);
 		
-		sendRequest(readReq, filename, mode);
+		
 		byte[] receivedData;
+		byte[] receivedOpcode;
 		int currentBlockNumber = 1;
 		
-		BufferedOutputStream out = new BufferedOutputStream(new FileOutputStream("ClientFiles/" + filename));
+		if(new File("ClientFiles/" + filename).exists()){
+			System.err.println('"' + filename + '"' + " already exists on Client.");
+			return;
+		}
+		BufferedOutputStream out = null;
+		
+		try {
+			out = new BufferedOutputStream(new FileOutputStream("ClientFiles/" + filename));
+		} catch (IOException e) {
+			if (e.getMessage().contains("(Access is denied)"));
+			System.err.println("Access to ClientFiles folder was denied");
+			return;
+		}
+		
+		
+		sendRequest(RequestPacket.readOpcode, filename, mode);
 		
 		while (true) {
-			receivedData = new byte[2 + 2 + 512]; // opcode + blockNumber + 512 bytes of data
+			receivedData = new byte[bufferSize];
 			receivePacket = new DatagramPacket(receivedData, receivedData.length);
-			System.out.println("Waiting for block of data...");
 			// receive block
-			sendAndReceiveSocket.receive(receivePacket);
+			try{
+				sendAndReceiveSocket.receive(receivePacket);
+			} catch(IOException e)
+			{
+							
+			}
 			TFTPInfoPrinter.printReceived(receivePacket);
 			
 			// validate packet
 			receivedData = Arrays.copyOf(receivePacket.getData(), receivePacket.getLength());
+			receivedOpcode = Arrays.copyOf(receivedData, 2);
 
-			int blockNum = getBlockNumberInt(receivedData);
-			System.out.println("Received block of data, Block#: " + blockNum);
+			
+			if (Arrays.equals(receivedOpcode, ErrorPacket.opcode)){
+				ErrorPacket ep = new ErrorPacket(receivedData);
+				System.err.println(ep.getErrorMessage());
+				// Handle error.
+				
+				// File not found on server
+				if (ep.getErrorCode() == 1){
+					
+				}
+				// Access denied on server
+				else if (ep.getErrorCode() == 2) {
+					
+				}
+				out.close();
+				return;
+			}
+			// The received packet should be an DATA packet at this point, and this have the Opcode defined in dataOP.
+			// If it is not an error packet or an DATA packet, something happened (these cases are in later iterations).
+			else if (!Arrays.equals(receivedOpcode, DataPacket.opcode)) {
+				// Do nothing special for Iteration 2.
+			}
+			
+			DataPacket dp = new DataPacket(receivedData);
+			
+			int blockNum = dp.getBlockNum();
+			System.out.println("Received block of data, Block#: " + currentBlockNumber);
 			
 			// Note: 256 is the maximum size of a 16 bit number.
 			if (blockNum != currentBlockNumber) {
@@ -86,21 +135,37 @@ public class Client {
 				 // If they're still not equal, another problem occurred.
 				if (blockNum != currentBlockNumber % 256)
 				{
+					// This will likely need to be handled different in future iterations.
 					System.out.println("Block Numbers not the same, exiting " + blockNum + " " + currentBlockNumber + " " + currentBlockNumber % 256);
 					System.exit(1);
 				}
 			}
-			byte[] dataBlock = Arrays.copyOfRange(receivedData, 4, receivedData.length); // 4 is where the data starts, after opcode + blockNumber
+			byte[] dataBlock = dp.getDataBlock();
 			
 			// Write dataBlock to file
-			out.write(dataBlock);
-			
-			System.out.println("Sending Ack...");
+			try{
+				out.write(dataBlock);
+			}
+			catch(IOException e){ //disk full
+				String msg = "Unable to write file " +filename+", disk space full";
+				System.err.println(msg);
+				ErrorPacket errPckt = new ErrorPacket((byte) 3, msg);
+				byte[] err = errPckt.encode();
+				sendPacket = new DatagramPacket(err, err.length, InetAddress.getLocalHost(), receivePacket.getPort());
+				sendAndReceiveSocket.send(sendPacket);
+				try {
+					out.close();
+				} catch (IOException e2) {
+					
+				}
+				return;
+			}
+
 			// Send ack back
-			byte[] ack = createAck(blockNum);
+			AckPacket ap = new AckPacket(blockNum);
 			
 			// Initial request was sent to wellKnownPort, but steady state file transfer should happen on another port.
-			sendPacket = new DatagramPacket(ack, ack.length, InetAddress.getLocalHost(), receivePacket.getPort());
+			sendPacket = new DatagramPacket(ap.encode(), ap.encode().length, InetAddress.getLocalHost(), receivePacket.getPort());
 			sendAndReceiveSocket.send(sendPacket);
 			TFTPInfoPrinter.printSent(sendPacket);
 			currentBlockNumber++;
@@ -115,48 +180,102 @@ public class Client {
 		out.close();
 	}
 	
-	private byte[] createAck(int blockNum) {
-		byte[] ack = new byte[4];
-		ack[0] = 0; //
-		ack[1] = 4; // Opcode
-		byte[] bn = convertBlockNumberByteArr(blockNum);
-		ack[2] = bn[0];
-		ack[3] = bn[1];
-		
-		return ack;
-	}
-	
 	public void writeToServer(String filename, String mode) throws IOException {
 		
 		int currentBlockNumber = 0;
-		BufferedInputStream in;
-		// It's a full path
-		if (filename.contains("\\") || filename.contains("/")) {
-			 in = new BufferedInputStream(new FileInputStream(filename));
-			 // for sending to Server
-			 int idx = filename.lastIndexOf('\\');
-			 if (idx == -1) {
-				 idx = filename.lastIndexOf('/');
-			 } 
-			 filename = filename.substring(idx+1);
-			 
-		}
-		// It's in the default ClientFiles folder
-		else {
-			 in = new BufferedInputStream(new FileInputStream("ClientFiles/" + filename));
+		BufferedInputStream in = null;
+		byte[] receivedData;
+		byte[] receivedOpcode;
+		
+		
+		
+		try {
+			// It's a full path
+			if (filename.contains("\\") || filename.contains("/")) {
+				
+				if(!(new File(filename).exists())){
+					System.err.println(filename + " does not exist on Client.");
+					return;
+				}
+				
+				in = new BufferedInputStream(new FileInputStream(filename));
+				// for sending to Server
+				int idx = filename.lastIndexOf('\\');
+				if (idx == -1) {
+					idx = filename.lastIndexOf('/');
+				} 
+				filename = filename.substring(idx+1);
+				 
+			}
+			// It's in the default ClientFiles folder
+			else {
+				
+
+				if(!(new File("ClientFiles/" + filename).exists())){
+					System.err.println(filename + " does not exist on Client.");
+					return;
+				}
+				
+				in = new BufferedInputStream(new FileInputStream("ClientFiles/" + filename));
+				
+				
+			}
+		} catch (IOException e) {
+			// Don't bother sending the server any error packets as the request hasn't been sent and server doesn't need to know
+			// Print out error information/handle error.
+			
+			if (e.getMessage().contains("(Access is denied)")) {
+				System.err.println("Cound not read " + filename + " on Client");
+			}
+			else {
+				e.printStackTrace();
+			}
+			return;
 		}
 		
-		sendRequest(writeReq, filename, mode);
+		
+		sendRequest(RequestPacket.writeOpcode, filename, mode);
 		
 		while (true) {
 			// receive ACK from previous dataBlock
-			byte[] data = new byte[4];
+			byte[] data = new byte[bufferSize];
 			receivePacket = new DatagramPacket(data, data.length);
-			System.out.println("Client is waiting to receive ACK from server");
-			sendAndReceiveSocket.receive(receivePacket);
+			try
+			{
+				sendAndReceiveSocket.receive(receivePacket);
+			} catch(IOException e)
+			{
+				e.printStackTrace();
+			}			
 			TFTPInfoPrinter.printReceived(receivePacket);
+			
+			receivedData = Arrays.copyOf(receivePacket.getData(), receivePacket.getLength());
+			receivedOpcode = Arrays.copyOf(receivedData, 2);
+			
+			if (Arrays.equals(receivedOpcode, ErrorPacket.opcode)){
+				ErrorPacket ep = new ErrorPacket(receivedData);
+				System.err.println(ep.getErrorMessage());
+				// Access denied, can't write to server
+				if (ep.getErrorCode() == 2) {
+					
+				}
+				// File already exits (on server)
+				else if (ep.getErrorCode() == 6) {
+					
+				}
+				
+				in.close();
+				return;
+			}
+			// The received packet should be an ACK packet at this point, and this have the Opcode defined in ackOP.
+			// If it is not an error packet or an ACK packet, something happened (these cases are in later iterations).
+			else if (!Arrays.equals(receivedOpcode, AckPacket.opcode)) {
+				// Do nothing special for Iteration 2.
+			}
+			
+			AckPacket ap = new AckPacket(receivedData);
 			// need block number
-			int blockNum = getBlockNumberInt(receivePacket.getData());
+			int blockNum = ap.getBlockNum();
 			
 			// Note: 256 is the maximum size of a 16 bit number.
 			// blockNum is an unsigned number, represented as a 2s complement it will appear to go from 127 to -128
@@ -175,14 +294,15 @@ public class Client {
 			// increment block number then send that block
 			currentBlockNumber++;
 			
-			byte[] dataBlock = new byte[512];
+			byte[] dataBlock = new byte[blockSize];
 			
 			// Resize dataBlock to total bytes read
 			int bytesRead = in.read(dataBlock);
 			if (bytesRead == -1) bytesRead = 0;
 			dataBlock = Arrays.copyOf(dataBlock, bytesRead);
 			
-			byte[] sendData = formatData(dataBlock, currentBlockNumber);
+			DataPacket dp = new DataPacket(currentBlockNumber, dataBlock);
+			byte[] sendData = dp.encode();
 			// Initial request was sent to wellKnownPort, but steady state file transfer should happen on another port.
 			sendPacket = new DatagramPacket(sendData, sendData.length, InetAddress.getLocalHost(), receivePacket.getPort());
 			sendAndReceiveSocket.send(sendPacket);
@@ -196,76 +316,9 @@ public class Client {
 	}
 	
 	
-	private int getBlockNumberInt(byte[] data) {
-		int blockNum;
-		// Check opcodes
-		
-		// Big Endian 
-		blockNum = data[2];
-		blockNum <<= 8;
-		blockNum |= data[3];
-		// 
-		return blockNum;
-	}
-	private byte[] convertBlockNumberByteArr(int blockNumber) {
-		return new byte[] {(byte)((blockNumber >> 8) & 0xFF), (byte)(blockNumber & 0xFF)};
-	}
-	
 	public void shutdown() {
 		sendAndReceiveSocket.close();
 		System.exit(1);
-	}
-	
-	
-	/**
-	 * 
-	 * @param reqType
-	 * @param filename
-	 * @param mode
-	 * @return
-	 */
-	private byte[] formatRequest(byte[] reqType, String filename, String mode) {
-		byte[] request = new byte[reqType.length + filename.length() + mode.length() + 2]; // +2 for the zero byte after filename and after mode.
-		byte[] filenameData = filename.getBytes();
-		byte[] modeData = mode.toLowerCase().getBytes();
-		int i, j, k;
-		
-		for (i = 0; i < reqType.length; i++) {
-			request[i] = reqType[i];
-		}
-
-		for (j = 0; j < filenameData.length; j++) {
-			request[i + j] = filenameData[j];
-		}
-		request[i + j] = 0; // zero byte after filename.
-		j++; 
-		for (k = 0; k < modeData.length; k++) {
-			request[i + j + k] = modeData[k];
-		}
-		
-		request[i + j + k] = 0; // final zero byte.
-
-		return request;
-	}
-	
-	private byte[] formatData(byte[] data, int blockNumber) {
-		
-		byte[] formatted = new byte[data.length + 4]; // +4 for opcode and datablock number (2 bytes each)
-		byte[] blockNumData = convertBlockNumberByteArr(blockNumber);
-		int i;
-		
-		// opcode
-		formatted[0] = 0;
-		formatted[1] = 3;
-		// blockNumber
-		formatted[2] = blockNumData[0];
-		formatted[3] = blockNumData[1];
-		
-		for (i = 0; i < data.length; i++) {
-			formatted[i + 4] = data[i];
-		}
-
-		return formatted;
 	}
 	
 	public static void main(String args[]) {
@@ -301,11 +354,13 @@ public class Client {
 			
 			try {
 				if (action.equals("r") || action.equals("read")) {
-					c.readFromServer(fileName, mode);
+					//check if a file with that name exists on the client side
+					c.readFromServer(fileName, "octet");
 					System.out.println("Transfer complete");
+
 				}
 				else if (action.equals("w") || action.equals("write")) {
-					c.writeToServer(fileName, mode);
+					c.writeToServer(fileName, "octet");
 					System.out.println("Transfer complete");
 				}
 				else {
