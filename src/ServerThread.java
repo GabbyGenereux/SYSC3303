@@ -363,6 +363,16 @@ public class ServerThread extends Thread{
 				break; 
 			}
 		}
+		
+		//send the last ACK packet
+		AckPacket ap = new AckPacket(currentBlockNumber);
+		byte[] ack = ap.encode();
+		
+		// Initial request was sent to wellKnownPort, but steady state file transfer should happen on another port.
+		sendPacket = new DatagramPacket(ack, ack.length, InetAddress.getLocalHost(), receivePacket.getPort());
+		sendReceiveSocket.send(sendPacket);
+		TFTPInfoPrinter.printSent(sendPacket);
+		
 		out.close();
 		sendReceiveSocket.close();
 		System.out.println("Transfer complete");
