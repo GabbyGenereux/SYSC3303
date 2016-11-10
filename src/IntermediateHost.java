@@ -6,6 +6,7 @@ import java.net.SocketException;
 import java.net.UnknownHostException;
 import java.util.Arrays;
 import java.util.Scanner;
+import java.util.concurrent.TimeUnit;
 
 public class IntermediateHost {
 	
@@ -13,7 +14,8 @@ public class IntermediateHost {
 	DatagramPacket receivePacket, sendPacket;
 	private int mode = 0;
 	private byte[] code = new byte[2];
-	private int delay = 0;;
+	private int delay = 0;
+	private boolean isTarget = false;
 	
 	public IntermediateHost()
 	{
@@ -27,7 +29,7 @@ public class IntermediateHost {
 		}
 	}
 	
-	public void receiveAndSend()
+	public void receiveAndSend() throws InterruptedException
 	{
 		int clientPort, serverPort = 69;
 		HostInput errorModeCommand = new HostInput("Host Input Handler", this);
@@ -54,6 +56,7 @@ public class IntermediateHost {
 			
 			// Send to Server
 			byte[] data2 = Arrays.copyOf(receivePacket.getData(),  receivePacket.getLength());
+			isTarget = checkData(data2);
 			
 			TFTPInfoPrinter.printReceived(receivePacket);
 			
@@ -67,7 +70,18 @@ public class IntermediateHost {
 				System.exit(1);
 			}
 			try{
-				sendAndReceiveSocket.send(sendPacket);
+				if(isTarget && mode == 2){
+					TimeUnit.MILLISECONDS.sleep(delay);
+					sendAndReceiveSocket.send(sendPacket);
+				}
+				else if(isTarget && mode == 3){
+					sendAndReceiveSocket.send(sendPacket);
+					TimeUnit.MILLISECONDS.sleep(delay);
+					sendAndReceiveSocket.send(sendPacket);
+				}
+				else if(!(isTarget && mode == 1)){
+					sendAndReceiveSocket.send(sendPacket);
+				}
 			}catch(IOException e)
 			{
 				e.printStackTrace();
@@ -88,6 +102,7 @@ public class IntermediateHost {
 				System.exit(1);
 			}
 			serverPort = receivePacket.getPort();
+			isTarget = checkData(receivePacket.getData());
 			
 			TFTPInfoPrinter.printReceived(receivePacket);
 			// End receive from Server
@@ -98,7 +113,18 @@ public class IntermediateHost {
 			sendPacket.setAddress(clientAddress);
 			sendPacket.setPort(clientPort);
 			try{
-				receiveSocket.send(sendPacket);
+				if(isTarget && mode == 2){
+					TimeUnit.MILLISECONDS.sleep(delay);
+					receiveSocket.send(sendPacket);
+				}
+				else if(isTarget && mode == 3){
+					receiveSocket.send(sendPacket);
+					TimeUnit.MILLISECONDS.sleep(delay);
+					receiveSocket.send(sendPacket);
+				}
+				else if(!(isTarget && mode == 1)){
+					receiveSocket.send(sendPacket);
+				}
 			}catch(IOException e)
 			{
 				e.printStackTrace();
@@ -111,7 +137,7 @@ public class IntermediateHost {
 		
 	}
 	
-	public static void main(String args[])
+	public static void main(String args[]) throws InterruptedException
 	{
 		System.out.println("Choose whether you would like to run in quiet or verbose mode (q/v):");
 		Scanner s = new Scanner(System.in);
@@ -139,5 +165,15 @@ public class IntermediateHost {
 			System.out.print(c[i] + " ");
 		}
 		System.out.println("]" + "with delay of " + d);
+	}
+	
+	public boolean checkData(byte[] data){
+		boolean state = true;
+		for(int i = 0; i < code.length; i++){
+			if(state == true && data[i] != code[i]){
+				state = false;
+			}
+		}
+		return state;
 	}
 }
