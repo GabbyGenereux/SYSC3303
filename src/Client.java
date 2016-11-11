@@ -232,7 +232,7 @@ public class Client {
 			
 			// Initial request was sent to wellKnownPort, but steady state file transfer should happen on another port.
 			sendPacket = new DatagramPacket(ap.encode(), ap.encode().length, InetAddress.getLocalHost(), receivePacket.getPort());
-			if(packetSendWithTimeout(sendAndReceiveSocket, sendPacket))
+			if(!packetSendWithTimeout(sendAndReceiveSocket, sendPacket))
 			{
 				out.close();
 				return;
@@ -286,7 +286,6 @@ public class Client {
 					System.err.println(filename + " does not exist on Client.");
 					return;
 				}
-				
 				in = new BufferedInputStream(new FileInputStream("ClientFiles/" + filename));
 				
 				
@@ -303,7 +302,6 @@ public class Client {
 			}
 			return;
 		}
-		
 		
 		sendRequest(RequestPacket.writeOpcode, filename, mode);
 		
