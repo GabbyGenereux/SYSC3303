@@ -8,6 +8,7 @@ import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
 import java.net.SocketException;
+import java.net.SocketTimeoutException;
 import java.net.UnknownHostException;
 import java.util.Arrays;
 import java.util.Scanner;
@@ -43,19 +44,73 @@ public class Client {
 			System.exit(1);
 		}	
 	}
-
+	//receives a packet on the socket given with a timeout of 5 seconds, eventually gives up after a few timeouts
+	//returns false if unsuccessful, true if successful
+	private boolean packetReceiveWithTimeout(DatagramSocket socket, DatagramPacket packet) throws IOException
+	{
+		socket.setSoTimeout(5000);		//set timeout to 5000 ms (5 seconds)
+		int numTimeouts = 0;
+		boolean receivedOrSent = false;
+		while(numTimeouts < 5 & !receivedOrSent)
+		{
+			receivedOrSent = true;
+			try{
+				socket.receive(packet);
+			} catch(SocketTimeoutException e)
+			{
+				receivedOrSent = false;	
+				numTimeouts++;
+				System.out.print("Timed out, retrying transfer.");					
+			}
+		}
+		if(numTimeouts >= 5)
+		{
+			System.out.print("Transfer failed, timed out too many times.");
+			return false;
+		}
+		return true;
+	}
+	
+	//sends a packet on the socket given with a timeout of 5 seconds, eventually gives up after a few timeouts
+	//returns false if unsuccessful, true if successful
+	private boolean packetSendWithTimeout(DatagramSocket socket, DatagramPacket packet) throws IOException
+	{
+		socket.setSoTimeout(5000);		//set timeout to 5000 ms (5 seconds)
+		int numTimeouts = 0;
+		boolean receivedOrSent = false;
+		while(numTimeouts < 5 & !receivedOrSent)
+		{
+			receivedOrSent = true;
+			try{
+				socket.receive(packet);
+			} catch(SocketTimeoutException e)
+			{
+				receivedOrSent = false;	
+				numTimeouts++;
+				System.out.print("Timed out, retrying transfer.");					
+			}
+		}
+		if(numTimeouts >= 5)
+		{
+			System.out.print("Transfer failed, timed out too many times.");
+			return false;
+		}
+		return true;
+	}
+	
 	private void sendRequest(byte[] reqType, String filename, String mode) throws UnknownHostException {
 		RequestPacket p = new RequestPacket(reqType, filename, mode);
 		byte[] message = p.encode();
 		
 		DatagramPacket request = new DatagramPacket(message, message.length, InetAddress.getLocalHost(), wellKnownPort);
-		
+		boolean sent = false;
 		try {
-			sendAndReceiveSocket.send(request);
+			sent = packetSendWithTimeout(sendAndReceiveSocket, request);
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
-		TFTPInfoPrinter.printSent(request);
+		if(sent)
+			TFTPInfoPrinter.printSent(request);
 	}
 	
 	public void readFromServer(String filename, String mode) throws IOException{		
@@ -82,16 +137,15 @@ public class Client {
 		
 		
 		sendRequest(RequestPacket.readOpcode, filename, mode);
-		
 		while (true) {
 			receivedData = new byte[bufferSize];
 			receivePacket = new DatagramPacket(receivedData, receivedData.length);
 			// receive block
-			try{
-				sendAndReceiveSocket.receive(receivePacket);
-			} catch(IOException e)
+			
+			if(!packetReceiveWithTimeout(sendAndReceiveSocket, receivePacket))
 			{
-							
+				out.close();
+				return;
 			}
 			TFTPInfoPrinter.printReceived(receivePacket);
 			
@@ -126,14 +180,18 @@ public class Client {
 			
 			int blockNum = dp.getBlockNum();
 			System.out.println("Received block of data, Block#: " + currentBlockNumber);
-			
+			boolean duplicateDataPacket = false;
 			// Note: 256 is the maximum size of a 16 bit number.
 			if (blockNum != currentBlockNumber) {
-				if (blockNum < 0) {
+				if(currentBlockNumber > blockNum)
+				{
+					duplicateDataPacket = true;		//received another a data packet that was already received in the past
+				}
+				else if (blockNum < 0) {
 					blockNum += 256; // If the block rolls over (it's a 16 bit number represented as unsigned)
 				}
 				 // If they're still not equal, another problem occurred.
-				if (blockNum != currentBlockNumber % 256)
+				else if (blockNum != currentBlockNumber % 256)
 				{
 					// This will likely need to be handled different in future iterations.
 					System.out.println("Block Numbers not the same, exiting " + blockNum + " " + currentBlockNumber + " " + currentBlockNumber % 256);
@@ -143,30 +201,42 @@ public class Client {
 			byte[] dataBlock = dp.getDataBlock();
 			
 			// Write dataBlock to file
-			try{
-				out.write(dataBlock);
-			}
-			catch(IOException e){ //disk full
-				String msg = "Unable to write file " +filename+", disk space full";
-				System.err.println(msg);
-				ErrorPacket errPckt = new ErrorPacket((byte) 3, msg);
-				byte[] err = errPckt.encode();
-				sendPacket = new DatagramPacket(err, err.length, InetAddress.getLocalHost(), receivePacket.getPort());
-				sendAndReceiveSocket.send(sendPacket);
-				try {
-					out.close();
-				} catch (IOException e2) {
-					
+			if(!duplicateDataPacket) 	// do not write duplicate dataBlocks to file
+			{
+				try{
+					out.write(dataBlock);
 				}
-				return;
+				catch(IOException e){ //disk full
+					String msg = "Unable to write file " +filename+", disk space full";
+					System.err.println(msg);
+					ErrorPacket errPckt = new ErrorPacket((byte) 3, msg);
+					byte[] err = errPckt.encode();
+					sendPacket = new DatagramPacket(err, err.length, InetAddress.getLocalHost(), receivePacket.getPort());
+					sendAndReceiveSocket.send(sendPacket);
+					if(!packetSendWithTimeout(sendAndReceiveSocket, sendPacket))
+					{
+						out.close();
+						return;
+					}
+					try {
+						out.close();
+					} catch (IOException e2) {
+						
+					}
+					return;
+				}
 			}
-
 			// Send ack back
+			// Duplicate dataBlocks are still ACKed, but are not written to file
 			AckPacket ap = new AckPacket(blockNum);
 			
 			// Initial request was sent to wellKnownPort, but steady state file transfer should happen on another port.
 			sendPacket = new DatagramPacket(ap.encode(), ap.encode().length, InetAddress.getLocalHost(), receivePacket.getPort());
-			sendAndReceiveSocket.send(sendPacket);
+			if(packetSendWithTimeout(sendAndReceiveSocket, sendPacket))
+			{
+				out.close();
+				return;
+			}
 			TFTPInfoPrinter.printSent(sendPacket);
 			currentBlockNumber++;
 			
@@ -240,14 +310,12 @@ public class Client {
 		while (true) {
 			// receive ACK from previous dataBlock
 			byte[] data = new byte[bufferSize];
-			receivePacket = new DatagramPacket(data, data.length);
-			try
+			receivePacket = new DatagramPacket(data, data.length);	
+			if(!packetReceiveWithTimeout(sendAndReceiveSocket, receivePacket))
 			{
-				sendAndReceiveSocket.receive(receivePacket);
-			} catch(IOException e)
-			{
-				e.printStackTrace();
-			}			
+				in.close();
+				return;
+			}
 			TFTPInfoPrinter.printReceived(receivePacket);
 			
 			receivedData = Arrays.copyOf(receivePacket.getData(), receivePacket.getLength());
@@ -281,11 +349,15 @@ public class Client {
 			// Note: 256 is the maximum size of a 16 bit number.
 			// blockNum is an unsigned number, represented as a 2s complement it will appear to go from 127 to -128
 			if (blockNum != currentBlockNumber) {
-				if (blockNum < 0) {
+				if (currentBlockNumber < 0)
+				{
+					//do nothing, do not resend past data packets
+				}
+				else if (blockNum < 0) {
 					blockNum += 256; // If the block rolls over (it's a 16 bit number represented as unsigned)
 				}
 				// If they're still not equal, another problem occurred.
-				if (blockNum != currentBlockNumber % 256)
+				else if (blockNum != currentBlockNumber % 256)
 				{
 					System.out.println("Block Numbers not the same, exiting " + blockNum + " " + currentBlockNumber + " " + currentBlockNumber % 256);
 					System.exit(1);
@@ -306,8 +378,11 @@ public class Client {
 			byte[] sendData = dp.encode();
 			// Initial request was sent to wellKnownPort, but steady state file transfer should happen on another port.
 			sendPacket = new DatagramPacket(sendData, sendData.length, InetAddress.getLocalHost(), receivePacket.getPort());
-			sendAndReceiveSocket.send(sendPacket);
-			
+			if(!packetSendWithTimeout(sendAndReceiveSocket, sendPacket))
+			{
+				in.close();
+				return;
+			}
 			TFTPInfoPrinter.printSent(sendPacket);
 			
 			if (bytesRead < 512) break;
