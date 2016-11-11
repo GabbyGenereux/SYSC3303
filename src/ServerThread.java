@@ -9,6 +9,7 @@ import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
 import java.net.SocketException;
+import java.net.SocketTimeoutException;
 import java.util.Arrays;
 
 
@@ -29,6 +30,59 @@ public class ServerThread extends Thread{
 		file = rp.getFilename();
 	}
 	
+	//receives a packet on the socket given with a timeout of 5 seconds, eventually gives up after a few timeouts
+	//returns false if unsuccessful, true if successful
+	private boolean packetReceiveWithTimeout(DatagramSocket socket, DatagramPacket packet) throws IOException
+	{
+		socket.setSoTimeout(5000);		//set timeout to 5000 ms (5 seconds)
+		int numTimeouts = 0;
+		boolean receivedOrSent = false;
+		while(numTimeouts < 5 & !receivedOrSent)
+		{
+			receivedOrSent = true;
+			try{
+				socket.receive(packet);
+			} catch(SocketTimeoutException e)
+			{
+				receivedOrSent = false;	
+				numTimeouts++;
+				System.out.print("Timed out, retrying transfer.");					
+			}
+		}
+		if(numTimeouts >= 5)
+		{
+			System.out.print("Transfer failed, timed out too many times.");
+			return false;
+		}
+		return true;
+	}
+	
+	//sends a packet on the socket given with a timeout of 5 seconds, eventually gives up after a few timeouts
+	//returns false if unsuccessful, true if successful
+	private boolean packetSendWithTimeout(DatagramSocket socket, DatagramPacket packet) throws IOException
+	{
+		socket.setSoTimeout(5000);		//set timeout to 5000 ms (5 seconds)
+		int numTimeouts = 0;
+		boolean receivedOrSent = false;
+		while(numTimeouts < 5 & !receivedOrSent)
+		{
+			receivedOrSent = true;
+			try{
+				socket.receive(packet);
+			} catch(SocketTimeoutException e)
+			{
+				receivedOrSent = false;	
+				numTimeouts++;
+				System.out.print("Timed out, retrying transfer.");					
+			}
+		}
+		if(numTimeouts >= 5)
+		{
+			System.out.print("Transfer failed, timed out too many times.");
+			return false;
+		}
+		return true;
+	}
 	public void run(){
 
 		// Determination of type of packet received
@@ -117,14 +171,9 @@ public class ServerThread extends Thread{
 					
 					// Send errorPacket
 					sendPacket = new DatagramPacket(ep.encode(), ep.encode().length, receivePacket.getAddress(), receivePacket.getPort());
-					try
+					if(!packetSendWithTimeout(sendReceiveSocket, sendPacket))
 					{
-						sendReceiveSocket.send(sendPacket);
-					}
-					catch (IOException e2)
-					{
-						e2.printStackTrace();
-						System.exit(1);
+						return;
 					}
 					TFTPInfoPrinter.printSent(sendPacket);
 					return;
@@ -158,28 +207,20 @@ public class ServerThread extends Thread{
 			
 			//send the data to the client
 			sendPacket = new DatagramPacket(data, data.length, receivePacket.getAddress(), receivePacket.getPort());
-			try
+			if(!packetSendWithTimeout(sendReceiveSocket, sendPacket))
 			{
-				sendReceiveSocket.send(sendPacket);
-			}
-			catch (IOException e)
-			{
-				e.printStackTrace();
-				System.exit(1);
+				in.close();
+				return;
 			}
 			TFTPInfoPrinter.printSent(sendPacket);
 			
 			//receive the ACK from the client
 			byte[] ack = new byte[bufferSize];
 			receivePacket = new DatagramPacket(ack, ack.length);
-			try
+			if(!packetReceiveWithTimeout(sendReceiveSocket, receivePacket))
 			{
-				sendReceiveSocket.receive(receivePacket);
-			}
-			catch (IOException e)
-			{
-				e.printStackTrace();
-				System.exit(1);
+				in.close();
+				return;
 			}
 			TFTPInfoPrinter.printReceived(receivePacket);
 			
@@ -193,7 +234,6 @@ public class ServerThread extends Thread{
 				ErrorPacket ep = new ErrorPacket(Arrays.copyOf(receivePacket.getData(), receivePacket.getLength()));
 				System.err.println(ep.getErrorMessage());
 				// As the server, 
-						
 				in.close();
 				return;
 			}
@@ -209,11 +249,15 @@ public class ServerThread extends Thread{
 			
 			// Note: 256 is the maximum size of a 16 bit number.
 			if (blockNum != currentBlockNumber ) {
-				if (blockNum < 0) {
+				if (currentBlockNumber < blockNum)
+				{
+					//repeat ACK received, do nothing
+				}
+				else if (blockNum < 0) {
 					blockNum += 256; // If the block rolls over (it's a 16 bit number represented as unsigned)
 				}
 				// If they're still not equal, another problem occurred.
-				if (blockNum != currentBlockNumber % 256)
+				else if (blockNum != currentBlockNumber % 256)
 				{
 					System.out.println("Block Numbers not the same, exiting " + blockNum + " " + currentBlockNumber + " " + currentBlockNumber % 256);
 					System.exit(1);
@@ -245,15 +289,11 @@ public class ServerThread extends Thread{
 			
 			// Send errorPacket
 			sendPacket = new DatagramPacket(ep.encode(), ep.encode().length, receivePacket.getAddress(), receivePacket.getPort());
-			try
+			if(!packetSendWithTimeout(sendReceiveSocket, sendPacket))
 			{
+				return;
+			}
 				sendReceiveSocket.send(sendPacket);
-			}
-			catch (IOException e2)
-			{
-				e2.printStackTrace();
-				System.exit(1);
-			}
 			TFTPInfoPrinter.printSent(sendPacket);
 			return;
 		}
@@ -267,14 +307,22 @@ public class ServerThread extends Thread{
 			
 			// Initial request was sent to wellKnownPort, but steady state file transfer should happen on another port.
 			sendPacket = new DatagramPacket(ack, ack.length, InetAddress.getLocalHost(), receivePacket.getPort());
-			sendReceiveSocket.send(sendPacket);
+			if(!packetSendWithTimeout(sendReceiveSocket, sendPacket))
+			{
+				out.close();
+				return;
+			}
 			TFTPInfoPrinter.printSent(sendPacket);
 			currentBlockNumber++;
 			
 			receivedData = new byte[bufferSize];
 			receivePacket = new DatagramPacket(receivedData, receivedData.length);
 			// receive block
-			sendReceiveSocket.receive(receivePacket);
+			if(!packetSendWithTimeout(sendReceiveSocket, receivePacket))
+			{
+				out.close();
+				return;
+			}
 			TFTPInfoPrinter.printReceived(receivePacket);
 			
 			// validate packet
@@ -299,14 +347,19 @@ public class ServerThread extends Thread{
 			DataPacket dp = new DataPacket(receivedData);
 			int blockNum = dp.getBlockNum();
 			System.out.println("Received block of data, Block#: " + blockNum);
-			
+			boolean duplicateDataReceived = false;
 			// Note: 256 is the maximum size of a 16 bit number.
 			if (blockNum != currentBlockNumber ) {
-				if (blockNum < 0) {
+				if(currentBlockNumber > blockNum)
+				{
+					//received duplicate data packet
+					duplicateDataReceived = true;
+				}
+				else if (blockNum < 0) {
 					blockNum += 256; // If the block rolls over (it's a 16 bit number represented as unsigned)
 				}
 				// If they're still not equal, another problem occurred.
-				if (blockNum != currentBlockNumber % 256)
+				else if (blockNum != currentBlockNumber % 256)
 				{
 					System.out.println("Block Numbers not the same, exiting " + blockNum + " " + currentBlockNumber + " " + currentBlockNumber % 256);
 					System.exit(1);
@@ -316,44 +369,42 @@ public class ServerThread extends Thread{
 			byte[] dataBlock = dp.getDataBlock();
 			
 			// Write dataBlock to file
-			try {
-				out.write(dataBlock);
-			}
-			catch(IOException e)
-			{
-				String errorString;
-				ErrorPacket ep;
-				if(e.getMessage().contains("(Access is denied)"))
-				{ // Hacky solution to get determine if invalid file permissions.
-					errorString = "Server could not write " + '"' + filename + '"' + ".";
-					ep = new ErrorPacket((byte) 2, errorString);
-				}
-				else{
-					errorString = "Server disk full, unable to write.";
-					ep = new ErrorPacket((byte) 3, errorString);
-				}
-					
-				System.err.println(errorString);
-				
-				// Send errorPacket
-				sendPacket = new DatagramPacket(ep.encode(), ep.encode().length, receivePacket.getAddress(), receivePacket.getPort());
-				try
+			if(!duplicateDataReceived)
 				{
-					sendReceiveSocket.send(sendPacket);
-				}
-				catch (IOException e2)
-				{
-					System.out.println("Error on send...");
-					e2.printStackTrace();
-					System.exit(1);
-				}
-				TFTPInfoPrinter.printSent(sendPacket);
 				try {
-					out.close();
-				} catch (IOException e2) {
-					
+					out.write(dataBlock);
 				}
-				return;
+				catch(IOException e)
+				{
+					String errorString;
+					ErrorPacket ep;
+					if(e.getMessage().contains("(Access is denied)"))
+					{ // Hacky solution to get determine if invalid file permissions.
+						errorString = "Server could not write " + '"' + filename + '"' + ".";
+						ep = new ErrorPacket((byte) 2, errorString);
+					}
+					else{
+						errorString = "Server disk full, unable to write.";
+						ep = new ErrorPacket((byte) 3, errorString);
+					}
+						
+					System.err.println(errorString);
+					
+					// Send errorPacket
+					sendPacket = new DatagramPacket(ep.encode(), ep.encode().length, receivePacket.getAddress(), receivePacket.getPort());
+					if(!packetSendWithTimeout(sendReceiveSocket, sendPacket))
+					{
+						out.close();
+						return;
+					}
+					TFTPInfoPrinter.printSent(sendPacket);
+					try {
+						out.close();
+					} catch (IOException e2) {
+						
+					}
+					return;
+				}
 			}
 			
 			
@@ -370,7 +421,11 @@ public class ServerThread extends Thread{
 		
 		// Initial request was sent to wellKnownPort, but steady state file transfer should happen on another port.
 		sendPacket = new DatagramPacket(ack, ack.length, InetAddress.getLocalHost(), receivePacket.getPort());
-		sendReceiveSocket.send(sendPacket);
+		if(!packetSendWithTimeout(sendReceiveSocket, sendPacket))
+		{
+			out.close();
+			return;
+		}
 		TFTPInfoPrinter.printSent(sendPacket);
 		
 		out.close();
