@@ -37,7 +37,7 @@ public class HostInput extends Thread
 					do{
 						System.out.println("Enter Packet type to trigger error:");
 						System.out.println("Packets: RRQ, WRQ, ACK, DATA");
-						type = s.nextLine();	
+						type = s.nextLine().toUpperCase();	
 					}while(!type.equals("RRQ") && !type.equals("WRQ") && !type.equals("ACK") && !type.equals("DATA"));
 					//Set packet number if needed
 					if(type.equals("ACK") || type.equals("DATA")){
