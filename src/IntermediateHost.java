@@ -43,11 +43,10 @@ public class IntermediateHost {
 			
 			// Receive from client
 			receivePacket = new DatagramPacket(data, data.length);
-			System.out.println("Intermediate Host: waiting for packet..");
 			
 			do{
 				try{
-					System.out.println("Waiting..");
+					System.out.println("Waiting for packet from client");
 					receiveSocket.receive(receivePacket);
 					
 				}catch(IOException e)
@@ -108,9 +107,9 @@ public class IntermediateHost {
 			// End send to server
 			
 			// Receive from Server
-			System.out.println("Intermediate Host: Waiting for packet");
 			do{
 				try{
+					System.out.println("Waiting for packet from server");
 					sendAndReceiveSocket.receive(receivePacket);
 				}catch(IOException e)
 				{

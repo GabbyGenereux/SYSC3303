@@ -318,7 +318,7 @@ public class ServerThread extends Thread{
 			receivedData = new byte[bufferSize];
 			receivePacket = new DatagramPacket(receivedData, receivedData.length);
 			// receive block
-			if(!packetSendWithTimeout(sendReceiveSocket, receivePacket))
+			if(!packetReceiveWithTimeout(sendReceiveSocket, receivePacket))
 			{
 				out.close();
 				return;
