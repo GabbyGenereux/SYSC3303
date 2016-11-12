@@ -88,7 +88,7 @@ In eclipse:
 2. Start the Server/Client/IntermediateHost
 3. Set up Server/Client/IntermediateHost
 3a. In the server console, select the verbosity by entering "verbose"/"v" for verbose mode or "quiet"/"q" for quiet mode. 
-3b. Do the same for IntermediateHost if run.
+3b. In IntermediateHost, select the verbosity in the same way as server. To perform an error simulation, enter 1 to lose a packet, 2 to delay a packet, or 3 to duplicate a packet. Then, enter the type of packet to perform the error on, as well as the block number and delay between packets (if necessary). Entering a 0 when choosing an error performs normal operation.
 3c. In the Client console, select normal/test mode with either "normal"/"n" or "test"/"t" respectively. The test mode connects through the IntermediateHost, and as such the IntermediateHost needs to be run if test mode is enabled.
 4. In the Client console: Enter the filename name you wish to transfer, or "shutdown" without quotes to stop the client.
 	Note: 	When sending from the client to the server, either a enter a simple filename such as "file.txt" or the full path, such as "C:\Users\JoeSmith\file.txt".
