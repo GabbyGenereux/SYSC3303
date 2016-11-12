@@ -1,7 +1,6 @@
-/Server.class
 /IntermediateHost.class
-/AckPacket.class
-/DataPacket.class
-/ErrorPacket.class
 /RequestPacket.class
-/HostInput.class
+/Server.class
+/ServerInput.class
+/ServerThread.class
+/TFTPInfoPrinter.class

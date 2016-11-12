@@ -60,12 +60,12 @@ public class Client {
 			{
 				receivedOrSent = false;	
 				numTimeouts++;
-				System.out.print("Timed out, retrying transfer.");					
+				System.out.println("Timed out, retrying transfer.");					
 			}
 		}
 		if(numTimeouts >= 5)
 		{
-			System.out.print("Transfer failed, timed out too many times.");
+			System.out.println("Transfer failed, timed out too many times.");
 			return false;
 		}
 		return true;
@@ -82,17 +82,17 @@ public class Client {
 		{
 			receivedOrSent = true;
 			try{
-				socket.receive(packet);
+				socket.send(packet);
 			} catch(SocketTimeoutException e)
 			{
 				receivedOrSent = false;	
 				numTimeouts++;
-				System.out.print("Timed out, retrying transfer.");					
+				System.out.println("Timed out, retrying transfer.");					
 			}
 		}
 		if(numTimeouts >= 5)
 		{
-			System.out.print("Transfer failed, timed out too many times.");
+			System.out.println("Transfer failed, timed out too many times.");
 			return false;
 		}
 		return true;

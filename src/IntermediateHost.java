@@ -14,8 +14,11 @@ public class IntermediateHost {
 	DatagramPacket receivePacket, sendPacket;
 	private int mode = 0;
 	private byte[] code = new byte[2];
+	private byte[] defCode = new byte[2];
+	byte[] data2;
 	private int delay = 0;
 	private boolean isTarget = false;
+	private boolean isDrop = false;
 	
 	public IntermediateHost()
 	{
@@ -42,21 +45,30 @@ public class IntermediateHost {
 			receivePacket = new DatagramPacket(data, data.length);
 			System.out.println("Intermediate Host: waiting for packet..");
 			
-			try{
-				System.out.println("Waiting..");
-				receiveSocket.receive(receivePacket);
+			do{
+				try{
+					System.out.println("Waiting..");
+					receiveSocket.receive(receivePacket);
+					
+				}catch(IOException e)
+				{
+					System.out.print("IO Exception, likely receive socket timeout");
+					e.printStackTrace();
+					System.exit(1);
+				}
+				// End receive from client
 				
-			}catch(IOException e)
-			{
-				System.out.print("IO Exception, likely receive socket timeout");
-				e.printStackTrace();
-				System.exit(1);
-			}
-			// End receive from client
-			
-			// Send to Server
-			byte[] data2 = Arrays.copyOf(receivePacket.getData(),  receivePacket.getLength());
-			isTarget = checkData(data2);
+				// Send to Server
+				data2 = Arrays.copyOf(receivePacket.getData(),  receivePacket.getLength());
+				isTarget = checkData(data2);
+				if(isTarget && mode == 1){
+					mode = 0;
+					System.out.println("Packet Dropped");
+				}
+				else{
+					isDrop = false;
+				}
+			}while(isDrop);
 			
 			TFTPInfoPrinter.printReceived(receivePacket);
 			
@@ -89,20 +101,33 @@ public class IntermediateHost {
 			}
 			TFTPInfoPrinter.printSent(sendPacket);	
 			
+			//return to normal operation
+			if(isTarget){
+				mode = 0;
+			}
 			// End send to server
 			
 			// Receive from Server
 			System.out.println("Intermediate Host: Waiting for packet");
-			try{
-				sendAndReceiveSocket.receive(receivePacket);
-			}catch(IOException e)
-			{
-				System.out.print("IO Exception, likely receive socket timeout");
-				e.printStackTrace();
-				System.exit(1);
-			}
-			serverPort = receivePacket.getPort();
-			isTarget = checkData(receivePacket.getData());
+			do{
+				try{
+					sendAndReceiveSocket.receive(receivePacket);
+				}catch(IOException e)
+				{
+					System.out.print("IO Exception, likely receive socket timeout");
+					e.printStackTrace();
+					System.exit(1);
+				}
+				serverPort = receivePacket.getPort();
+				isTarget = checkData(receivePacket.getData());
+				if(isTarget && mode == 1){
+					mode = 0;
+					System.out.println("Packet Dropped");
+				}
+				else{
+					isDrop = false;
+				}
+			}while(isDrop);
 			
 			TFTPInfoPrinter.printReceived(receivePacket);
 			// End receive from Server
@@ -132,6 +157,11 @@ public class IntermediateHost {
 			}
 			
 			System.out.println("Intermediate Host: Packet sent");
+			
+			//return to normal operation
+			if(isTarget){
+				mode = 0;
+			}
 		}
 		// End send to Client
 		

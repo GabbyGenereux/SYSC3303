@@ -68,7 +68,7 @@ public class ServerThread extends Thread{
 		{
 			receivedOrSent = true;
 			try{
-				socket.receive(packet);
+				socket.send(packet);
 			} catch(SocketTimeoutException e)
 			{
 				receivedOrSent = false;	
