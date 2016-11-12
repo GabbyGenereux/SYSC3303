@@ -130,9 +130,13 @@ public class Client {
 		try {
 			out = new BufferedOutputStream(new FileOutputStream("ClientFiles/" + filename));
 		} catch (IOException e) {
-			if (e.getMessage().contains("(Access is denied)"));
-			System.err.println("Access to ClientFiles folder was denied");
-			return;
+			if (e.getMessage().contains("(Access is denied)")){
+				System.err.println("Access to ClientFiles folder was denied");
+				return;
+			}
+			else {
+				System.err.println("Unknown file error");
+			}
 		}
 		
 		

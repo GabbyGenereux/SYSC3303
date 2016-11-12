@@ -298,7 +298,18 @@ public class ServerThread extends Thread{
 			return;
 		}
 		
-		BufferedOutputStream out = new BufferedOutputStream(new FileOutputStream("ServerFiles/" + filename));
+		BufferedOutputStream out = null;
+		try {
+			out = new BufferedOutputStream(new FileOutputStream("ServerFiles/" + filename));
+		} catch (IOException e) {
+			if (e.getMessage().contains("(Access is denied)")){
+				System.err.println("Access to ServerFiles folder was denied");
+				return;
+			}
+			else {
+				System.err.println("Unknown file error");
+			}
+		}
 		
 		while (true) {
 			// Send ack back
