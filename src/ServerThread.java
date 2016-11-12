@@ -350,19 +350,23 @@ public class ServerThread extends Thread{
 			boolean duplicateDataReceived = false;
 			// Note: 256 is the maximum size of a 16 bit number.
 			if (blockNum != currentBlockNumber ) {
-				if(currentBlockNumber > blockNum)
-				{
-					//received duplicate data packet
-					duplicateDataReceived = true;
-				}
-				else if (blockNum < 0) {
+				
+				 if (blockNum < 0) {
 					blockNum += 256; // If the block rolls over (it's a 16 bit number represented as unsigned)
 				}
 				// If they're still not equal, another problem occurred.
 				else if (blockNum != currentBlockNumber % 256)
 				{
-					System.out.println("Block Numbers not the same, exiting " + blockNum + " " + currentBlockNumber + " " + currentBlockNumber % 256);
-					System.exit(1);
+					if(currentBlockNumber % 256 > blockNum)
+					{
+						//received duplicate data packet
+						duplicateDataReceived = true;
+					}
+					else {
+						System.out.println("Block Numbers not valid or duplicate" + blockNum + " " + currentBlockNumber + " " + currentBlockNumber % 256);
+						System.exit(1);
+					}
+					
 				}	
 			}
 			
