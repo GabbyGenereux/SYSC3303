@@ -183,21 +183,22 @@ public class Client {
 			DataPacket dp = new DataPacket(receivedData);
 			
 			int blockNum = dp.getBlockNum();
-			System.out.println("Received block of data, Block#: " + currentBlockNumber);
+			//System.out.println("Received block of data, Block#: " + currentBlockNumber);
 			boolean duplicateDataPacket = false;
-			// Note: 256 is the maximum size of a 16 bit number.
 			if (blockNum != currentBlockNumber) {
 				
-				if (blockNum < 0) {
-					blockNum += 256; // If the block rolls over (it's a 16 bit number represented as unsigned)
+				if (blockNum == 0) {
+					currentBlockNumber -= 65536;
 				}
+				
 				 // If they're still not equal, another problem occurred.
-				else if (blockNum != currentBlockNumber % 256)
+				if (blockNum != currentBlockNumber)
 				{
-					if(currentBlockNumber % 256 > blockNum)
+					if(currentBlockNumber > blockNum)
 					{
 						//received duplicate data packet
 						duplicateDataPacket = true;
+						currentBlockNumber += 65536; // Restore block number since packet was a duplicate
 					}
 					else {
 						System.out.println("Block Numbers not valid or duplicate" + blockNum + " " + currentBlockNumber + " " + currentBlockNumber % 256);
@@ -351,22 +352,27 @@ public class Client {
 			// need block number
 			int blockNum = ap.getBlockNum();
 			
-			// Note: 256 is the maximum size of a 16 bit number.
-			// blockNum is an unsigned number, represented as a 2s complement it will appear to go from 127 to -128
+			boolean duplicateDataPacket = false;
 			if (blockNum != currentBlockNumber) {
-				if (currentBlockNumber < 0)
-				{
-					//do nothing, do not resend past data packets
+				
+				if (blockNum == 0) {
+					currentBlockNumber -= 65536;
 				}
-				else if (blockNum < 0) {
-					blockNum += 256; // If the block rolls over (it's a 16 bit number represented as unsigned)
-				}
-				// If they're still not equal, another problem occurred.
-				else if (blockNum != currentBlockNumber % 256)
+				
+				 // If they're still not equal, another problem occurred.
+				if (blockNum != currentBlockNumber)
 				{
-					System.out.println("Block Numbers not the same, exiting " + blockNum + " " + currentBlockNumber + " " + currentBlockNumber % 256);
-					System.exit(1);
-				}	
+					if(currentBlockNumber > blockNum)
+					{
+						//received duplicate data packet
+						duplicateDataPacket = true;
+						currentBlockNumber += 65536; // Restore block number since packet was a duplicate
+					}
+					else {
+						System.out.println("Block Numbers not valid or duplicate" + blockNum + " " + currentBlockNumber + " " + currentBlockNumber % 256);
+						System.exit(1);
+					}
+				}
 			}
 			
 			// increment block number then send that block

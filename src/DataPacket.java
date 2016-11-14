@@ -11,10 +11,10 @@ public class DataPacket {
 		return blockNum;
 	}
 	public DataPacket(byte[] data) {
-		this.data = data;;
-		blockNum = data[2];
+		this.data = data;
+		blockNum = data[2] & 0x00FF;
 		blockNum <<= 8;
-		blockNum |= data[3];
+		blockNum |= data[3] & 0x0FF;
 		dataBlock = new byte[data.length - 4];
 		System.arraycopy(data, 4, dataBlock, 0, data.length - 4);
 	}

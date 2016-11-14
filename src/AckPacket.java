@@ -9,9 +9,9 @@ public class AckPacket {
 	
 	public AckPacket(byte[] data) {
 		this.data = data;
-		blockNum = data[2];
+		blockNum = data[2] & 0x00FF;
 		blockNum <<= 8;
-		blockNum |= data[3];
+		blockNum |= data[3] & 0x00FF;
 	}
 	public AckPacket(int blockNum) {
 		data = new byte[4];
