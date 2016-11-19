@@ -179,14 +179,14 @@ public class Client {
 			else if (!Arrays.equals(receivedOpcode, DataPacket.opcode)) {
 				// Send ErrorPacket with error code 04 and stop transfer.
 				ErrorPacket ep = new ErrorPacket((byte)4, "Was expecting a DATA packet.");
-				sendAndReceiveSocket.send(new DatagramPacket(ep.encode(), ep.encode().length));
+				sendAndReceiveSocket.send(new DatagramPacket(ep.encode(), ep.encode().length, InetAddress.getLocalHost(), receivePacket.getPort()));
 				return;
 			}
 			
 			// If the data packet is malformed, send error code 04 and stop transfer.
 			if (!DataPacket.isValid(receivedData)) {
 				ErrorPacket ep = new ErrorPacket((byte)4, "DATA packet was malformed.");
-				sendAndReceiveSocket.send(new DatagramPacket(ep.encode(), ep.encode().length));
+				sendAndReceiveSocket.send(new DatagramPacket(ep.encode(), ep.encode().length, InetAddress.getLocalHost(), receivePacket.getPort()));
 				return;
 			}
 			DataPacket dp = new DataPacket(receivedData);
@@ -213,7 +213,7 @@ public class Client {
 						// BlockNumber cannot be explained by duplicate or delayed packet, so it is an error.
 						// Send error code 04 and stop transfer
 						ErrorPacket ep = new ErrorPacket((byte)4, "DATA block number not in sequence or duplicate.");
-						sendAndReceiveSocket.send(new DatagramPacket(ep.encode(), ep.encode().length));
+						sendAndReceiveSocket.send(new DatagramPacket(ep.encode(), ep.encode().length, InetAddress.getLocalHost(), receivePacket.getPort()));
 						return;
 					}
 				}
@@ -359,12 +359,12 @@ public class Client {
 			else if (!Arrays.equals(receivedOpcode, AckPacket.opcode)) {
 				// Send ErrorPacket with error code 04 and stop transfer.
 				ErrorPacket ep = new ErrorPacket((byte)4, "Was expecting a ACK packet.");
-				sendAndReceiveSocket.send(new DatagramPacket(ep.encode(), ep.encode().length));
+				sendAndReceiveSocket.send(new DatagramPacket(ep.encode(), ep.encode().length, InetAddress.getLocalHost(), receivePacket.getPort()));
 				return;
 			}
 			if (!AckPacket.isValid(receivedData)) {
 				ErrorPacket ep = new ErrorPacket((byte)4, "ACK packet was malformed.");
-				sendAndReceiveSocket.send(new DatagramPacket(ep.encode(), ep.encode().length));
+				sendAndReceiveSocket.send(new DatagramPacket(ep.encode(), ep.encode().length, InetAddress.getLocalHost(), receivePacket.getPort()));
 				return;
 			}
 			AckPacket ap = new AckPacket(receivedData);
@@ -390,7 +390,7 @@ public class Client {
 					else {
 						// Send ErrorPacket with error code 04 and stop transfer.
 						ErrorPacket ep = new ErrorPacket((byte)4, "ACK packet was not in sequence or duplicate.");
-						sendAndReceiveSocket.send(new DatagramPacket(ep.encode(), ep.encode().length));
+						sendAndReceiveSocket.send(new DatagramPacket(ep.encode(), ep.encode().length, InetAddress.getLocalHost(), receivePacket.getPort()));
 						return;
 					}
 				}
