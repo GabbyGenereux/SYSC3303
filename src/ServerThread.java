@@ -84,7 +84,16 @@ public class ServerThread extends Thread{
 		return true;
 	}
 	public void run(){
-
+		if (!RequestPacket.isValid(receivedData)){
+			// Send error code 04 and stop transfer
+			ErrorPacket ep = new ErrorPacket((byte)4, "DATA block number not in sequence or duplicate.");
+			try {
+				sendReceiveSocket.send(new DatagramPacket(ep.encode(), ep.encode().length));
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
+			return;
+		}
 		// Determination of type of packet received
 		byte[] opcode = {receivedData[0], receivedData[1]};
 		
@@ -101,12 +110,6 @@ public class ServerThread extends Thread{
 			} catch (IOException e) {
 				e.printStackTrace();
 			}
-		}
-		//else if (Arrays.equals(opcode, error)) {} For future use, error packets will use this.
-		// Some sort of packet or data not expected at this time
-		else {
-			System.out.println("Invalid packet, exiting.");
-			System.exit(1);
 		}
 	}
 	
