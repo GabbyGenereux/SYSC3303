@@ -13,12 +13,17 @@ public class IntermediateHost {
 	DatagramSocket receiveSocket, sendAndReceiveSocket;
 	DatagramPacket receivePacket, sendPacket;
 	private int mode = 0;
+	private int corruptSeg = 0;
 	private byte[] code = new byte[2];
 	private byte[] defCode = new byte[2];
 	byte[] data2;
 	private int delay = 0;
 	private boolean isTarget = false;
 	private boolean isDrop = false;
+	byte[] newBlock = {0,0};
+	byte[] newOp = {0,0};
+	String modeStr = "";
+	String filename = "";
 	
 	public IntermediateHost()
 	{
@@ -74,12 +79,51 @@ public class IntermediateHost {
 			InetAddress clientAddress = receivePacket.getAddress();
 			clientPort = receivePacket.getPort();
 			
-			try {
-				sendPacket = new DatagramPacket(data2, data2.length, InetAddress.getLocalHost(), serverPort);
-			} catch (UnknownHostException e1) {
-				e1.printStackTrace();
-				System.exit(1);
+			if(isTarget && mode == 4){
+				//corrupt packet
+				if(corruptSeg == 1){
+					//change opcode
+					data2[0] = newOp[0];
+					data2[1] = newOp[1];
+				}
+				else if(corruptSeg == 2){
+					//change block number
+					data2[2] = newBlock[0];
+					data2[3] = newBlock[1];
+				}
+				else if(corruptSeg == 3){
+					//change end 0 byte to a value
+					data2[data2.length - 1] = 1;
+				}
+
+				else if(corruptSeg == 4){
+					//change mode
+					byte[] reqType = {data2[0], data2[1]};
+					filename = "";
+					for(int i = 2; data2[i] != 0; i++){
+						filename += data2[i];
+					}
+					RequestPacket p = new RequestPacket(reqType, filename, modeStr);
+					data2 = p.encode();
+				}
 			}
+			InetAddress addr = null;
+			try {
+				addr = InetAddress.getLocalHost();
+			} catch (UnknownHostException e2) {
+				// TODO Auto-generated catch block
+				e2.printStackTrace();
+			}
+			if(isTarget && mode == 5){
+				try {
+					addr = InetAddress.getByName("192.168.1.1");
+				} catch (UnknownHostException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
+			}
+			
+			sendPacket = new DatagramPacket(data2, data2.length, addr, serverPort);
 			try{
 				if(isTarget && mode == 2){
 					TimeUnit.MILLISECONDS.sleep(delay);
@@ -131,11 +175,51 @@ public class IntermediateHost {
 			TFTPInfoPrinter.printReceived(receivePacket);
 			// End receive from Server
 			
+			data2 = receivePacket.getData();
+			if(isTarget && mode == 4){
+				//corrupt packet
+				if(corruptSeg == 1){
+					//change opcode
+					data2[0] = newOp[0];
+					data2[1] = newOp[1];
+				}
+				else if(corruptSeg == 2){
+					//change block number
+					data2[2] = newBlock[0];
+					data2[3] = newBlock[1];
+				}
+				else if(corruptSeg == 3){
+					//change end 0 byte to a value
+					data2[data2.length - 1] = 1;
+				}
+
+				else if(corruptSeg == 4){
+					//change mode
+					byte[] reqType = {data2[0], data2[1]};
+					filename = "";
+					for(int i = 2; data2[i] != 0; i++){
+						filename += data2[i];
+					}
+					RequestPacket p = new RequestPacket(reqType, filename, modeStr);
+					data2 = p.encode();
+				}
+			}
+			
 			// Send to Client
-			sendPacket.setData(receivePacket.getData());
+			sendPacket.setData(data2);
 			sendPacket.setLength(receivePacket.getLength());
-			sendPacket.setAddress(clientAddress);
 			sendPacket.setPort(clientPort);
+			
+			addr = clientAddress;
+			if(isTarget && mode == 5){
+				try {
+					addr = InetAddress.getByName("192.168.1.1");
+				} catch (UnknownHostException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
+			}
+			sendPacket.setAddress(clientAddress);
 			try{
 				if(isTarget && mode == 2){
 					TimeUnit.MILLISECONDS.sleep(delay);
