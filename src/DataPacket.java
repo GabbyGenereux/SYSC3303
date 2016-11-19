@@ -13,7 +13,7 @@ public class DataPacket {
 	
 	public static boolean isValid(byte[] data) {
 		if (data[0] != opcode[0] || data[1] != opcode[1]) return false;
-		if (data.length > 514) return false;
+		if (data.length > 516) return false;
 		
 		return true;
 	}
