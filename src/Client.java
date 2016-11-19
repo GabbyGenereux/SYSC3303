@@ -177,9 +177,18 @@ public class Client {
 			// The received packet should be an DATA packet at this point, and this have the Opcode defined in dataOP.
 			// If it is not an error packet or an DATA packet, something happened (these cases are in later iterations).
 			else if (!Arrays.equals(receivedOpcode, DataPacket.opcode)) {
-				// Do nothing special for Iteration 2.
+				// Send ErrorPacket with error code 04 and stop transfer.
+				ErrorPacket ep = new ErrorPacket((byte)4, "Was expecting a DATA packet.");
+				sendAndReceiveSocket.send(new DatagramPacket(ep.encode(), ep.encode().length));
+				return;
 			}
 			
+			// If the data packet is malformed, send error code 04 and stop transfer.
+			if (!DataPacket.isValid(receivedData)) {
+				ErrorPacket ep = new ErrorPacket((byte)4, "DATA packet was malformed.");
+				sendAndReceiveSocket.send(new DatagramPacket(ep.encode(), ep.encode().length));
+				return;
+			}
 			DataPacket dp = new DataPacket(receivedData);
 			
 			int blockNum = dp.getBlockNum();
@@ -201,8 +210,11 @@ public class Client {
 						currentBlockNumber += 65536; // Restore block number since packet was a duplicate
 					}
 					else {
-						System.out.println("Block Numbers not valid or duplicate" + blockNum + " " + currentBlockNumber + " " + currentBlockNumber % 256);
-						System.exit(1);
+						// BlockNumber cannot be explained by duplicate or delayed packet, so it is an error.
+						// Send error code 04 and stop transfer
+						ErrorPacket ep = new ErrorPacket((byte)4, "DATA block number not in sequence or duplicate.");
+						sendAndReceiveSocket.send(new DatagramPacket(ep.encode(), ep.encode().length));
+						return;
 					}
 				}
 			}
@@ -345,9 +357,16 @@ public class Client {
 			// The received packet should be an ACK packet at this point, and this have the Opcode defined in ackOP.
 			// If it is not an error packet or an ACK packet, something happened (these cases are in later iterations).
 			else if (!Arrays.equals(receivedOpcode, AckPacket.opcode)) {
-				// Do nothing special for Iteration 2.
+				// Send ErrorPacket with error code 04 and stop transfer.
+				ErrorPacket ep = new ErrorPacket((byte)4, "Was expecting a ACK packet.");
+				sendAndReceiveSocket.send(new DatagramPacket(ep.encode(), ep.encode().length));
+				return;
 			}
-			
+			if (!AckPacket.isValid(receivedData)) {
+				ErrorPacket ep = new ErrorPacket((byte)4, "ACK packet was malformed.");
+				sendAndReceiveSocket.send(new DatagramPacket(ep.encode(), ep.encode().length));
+				return;
+			}
 			AckPacket ap = new AckPacket(receivedData);
 			// need block number
 			int blockNum = ap.getBlockNum();
@@ -369,8 +388,10 @@ public class Client {
 						currentBlockNumber += 65536; // Restore block number since packet was a duplicate
 					}
 					else {
-						System.out.println("Block Numbers not valid or duplicate" + blockNum + " " + currentBlockNumber + " " + currentBlockNumber % 256);
-						System.exit(1);
+						// Send ErrorPacket with error code 04 and stop transfer.
+						ErrorPacket ep = new ErrorPacket((byte)4, "ACK packet was not in sequence or duplicate.");
+						sendAndReceiveSocket.send(new DatagramPacket(ep.encode(), ep.encode().length));
+						return;
 					}
 				}
 			}
