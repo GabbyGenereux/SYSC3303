@@ -15,7 +15,34 @@ public class RequestPacket {
 		return mode;
 	}
 	
+	public static boolean isValid(byte[] data) {
+		byte[] opcode = {data[0], data[1]};
+		if (!opcode.equals(readOpcode) || !opcode.equals(writeOpcode)) return false;
+		
+		int i, j;
+		try {
+			for (i = 2; data[i] != 0; i++) {
+				; // Empty loop
+			}
+		} catch (ArrayIndexOutOfBoundsException e) {
+			return false; // 0 byte was not found.
+		}
+		
+		if (i == 2) return false; // Filename must be have characters.
+		
+		try {
+			for (j = ++i; data[i] != 0; i++) {
+				
+			}
+		} catch (ArrayIndexOutOfBoundsException e) {
+			return false; // 0 byte was not found.
+		}
+		
+		return true;
+	}
+	
 	public RequestPacket(byte[] data) {
+		//if (!isValid(data)) throw new IllegalArgumentException("");
 		this.data = data;
 		int i, j;
 		byte[] buffer = new byte[data.length];
@@ -24,7 +51,6 @@ public class RequestPacket {
 			buffer[i-2] = data[i];
 		}
 		filename = new String(Arrays.copyOf(buffer, i-2));
-		// Clear the StringBuilder for next use.
 		
 		// Start after 0 byte that denoted end of file name.
 		for (j = ++i; data[i] != 0; i++) {

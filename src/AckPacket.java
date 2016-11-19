@@ -7,6 +7,12 @@ public class AckPacket {
 		return blockNum;
 	}
 	
+	public static boolean isValid(byte[] data) {
+		if (data[0] != opcode[0] || data[1] != opcode[1]) return false;
+		if (data.length > 4) return false;
+		return true;
+	}
+	
 	public AckPacket(byte[] data) {
 		this.data = data;
 		blockNum = data[2] & 0x00FF;

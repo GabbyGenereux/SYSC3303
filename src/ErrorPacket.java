@@ -16,6 +16,22 @@ public class ErrorPacket {
 		return errorMessage;
 	}
 
+	
+	public static boolean isValid(byte[] data) {
+		if (data[0] != opcode[0] || data[1] != opcode[1]) return false;
+		
+		if (data[2] != 0) return false;
+		if (data[3] < 0 || data[3] > 7) return false;
+		
+		try {
+			for (int i = 4; data[i] != 0; i++);
+		} catch (ArrayIndexOutOfBoundsException e) {
+			return false;
+		}
+		
+		return true;
+	}
+	
 	/***
 	 * 
 	 * @param data
