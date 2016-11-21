@@ -15,13 +15,11 @@ public class IntermediateHost {
 	private int mode = 0;
 	private int corruptSeg = 0;
 	private byte[] code = new byte[2];
-	private byte[] defCode = new byte[2];
 	byte[] data2;
 	private int delay = 0;
 	private boolean isTarget = false;
 	private boolean isDrop = false;
 	byte[] newBlock = {0,0};
-	byte[] newOp = {0,0};
 	String modeStr = "";
 	String filename = "";
 	
@@ -83,8 +81,8 @@ public class IntermediateHost {
 				//corrupt packet
 				if(corruptSeg == 1){
 					//change opcode
-					data2[0] = newOp[0];
-					data2[1] = newOp[1];
+					data2[0] = newBlock[0];
+					data2[1] = newBlock[1];
 				}
 				else if(corruptSeg == 2){
 					//change block number
@@ -180,8 +178,8 @@ public class IntermediateHost {
 				//corrupt packet
 				if(corruptSeg == 1){
 					//change opcode
-					data2[0] = newOp[0];
-					data2[1] = newOp[1];
+					data2[0] = newBlock[0];
+					data2[1] = newBlock[1];
 				}
 				else if(corruptSeg == 2){
 					//change block number
@@ -269,15 +267,35 @@ public class IntermediateHost {
 		host.receiveAndSend();
 	}
 	
-	public void setMode(int m, byte[] c, int d){
-		mode = m;
+	public void setMode(int m, byte[] c, byte[] nc, int d){
+		if(m < 4){
+			mode = m;
+		}
+		else{
+			mode = 4;
+			corruptSeg = m-4;
+		}
 		code = c;
+		if(mode == 7){
+			modeStr = "";
+			for(int k = 0; k < nc.length; k++)
+			{
+				modeStr += nc[k];
+			}
+		}
+		else{
+			newBlock = nc;
+		}
 		delay = d;
 		System.out.print("Mode set to " + m + " for packet [ ");
 		for(int i = 0; i < c.length; i++){
 			System.out.print(c[i] + " ");
 		}
-		System.out.println("]" + "with delay of " + d);
+		System.out.print("] with replacement [ ");
+		for(int i = 0; i < nc.length; i++){
+			System.out.print(nc[i] + " ");
+		}
+		System.out.println("] with delay of " + d);
 	}
 	
 	public boolean checkData(byte[] data){
