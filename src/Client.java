@@ -60,7 +60,8 @@ public class Client {
 			{
 				receivedOrSent = false;	
 				numTimeouts++;
-				System.out.println("Timed out, retrying transfer.");					
+				System.out.println("Timed out, retrying transfer.");	
+				socket.send(resendPacket);
 			}
 		}
 		if(numTimeouts >= 5)
