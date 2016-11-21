@@ -15,13 +15,10 @@ public class IntermediateHost {
 	private int mode = 0;
 	private int corruptSeg = 0;
 	private byte[] code = new byte[2];
-	private byte[] defCode = new byte[2];
 	byte[] data2;
 	private int delay = 0;
 	private boolean isTarget = false;
 	private boolean isDrop = false;
-	byte[] newBlock = {0,0};
-	byte[] newOp = {0,0};
 	String modeStr = "";
 	String filename = "";
 	
@@ -67,6 +64,7 @@ public class IntermediateHost {
 				isTarget = checkData(data2);
 				if(isTarget && mode == 1){
 					mode = 0;
+					isDrop = true;
 					System.out.println("Packet Dropped");
 				}
 				else{
@@ -83,13 +81,13 @@ public class IntermediateHost {
 				//corrupt packet
 				if(corruptSeg == 1){
 					//change opcode
-					data2[0] = newOp[0];
-					data2[1] = newOp[1];
+					data2[0] = (byte)9;
+					data2[1] = (byte)9;
 				}
 				else if(corruptSeg == 2){
 					//change block number
-					data2[2] = newBlock[0];
-					data2[3] = newBlock[1];
+					data2[2] = (byte)9;
+					data2[3] = (byte)9;
 				}
 				else if(corruptSeg == 3){
 					//change end 0 byte to a value
@@ -165,6 +163,7 @@ public class IntermediateHost {
 				isTarget = checkData(receivePacket.getData());
 				if(isTarget && mode == 1){
 					mode = 0;
+					isDrop = true;
 					System.out.println("Packet Dropped");
 				}
 				else{
@@ -180,13 +179,13 @@ public class IntermediateHost {
 				//corrupt packet
 				if(corruptSeg == 1){
 					//change opcode
-					data2[0] = newOp[0];
-					data2[1] = newOp[1];
+					data2[0] = (byte)9;
+					data2[1] = (byte)9;
 				}
 				else if(corruptSeg == 2){
 					//change block number
-					data2[2] = newBlock[0];
-					data2[3] = newBlock[1];
+					data2[2] = (byte)9;
+					data2[3] = (byte)9;
 				}
 				else if(corruptSeg == 3){
 					//change end 0 byte to a value
@@ -269,10 +268,11 @@ public class IntermediateHost {
 		host.receiveAndSend();
 	}
 	
-	public void setMode(int m, byte[] c, int d){
+	public void setMode(int m, byte[] c, int d, int x){
 		mode = m;
 		code = c;
 		delay = d;
+		corruptSeg = x;
 		System.out.print("Mode set to " + m + " for packet [ ");
 		for(int i = 0; i < c.length; i++){
 			System.out.print(c[i] + " ");

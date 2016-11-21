@@ -46,7 +46,7 @@ public class Client {
 	}
 	//receives a packet on the socket given with a timeout of 5 seconds, eventually gives up after a few timeouts
 	//returns false if unsuccessful, true if successful
-	private boolean packetReceiveWithTimeout(DatagramSocket socket, DatagramPacket packet) throws IOException
+	private boolean packetReceiveWithTimeout(DatagramSocket socket, DatagramPacket packet, DatagramPacket resendPacket) throws IOException
 	{
 		socket.setSoTimeout(5000);		//set timeout to 5000 ms (5 seconds)
 		int numTimeouts = 0;
@@ -98,7 +98,7 @@ public class Client {
 		return true;
 	}
 	
-	private void sendRequest(byte[] reqType, String filename, String mode) throws UnknownHostException {
+	private DatagramPacket sendRequest(byte[] reqType, String filename, String mode) throws UnknownHostException {
 		RequestPacket p = new RequestPacket(reqType, filename, mode);
 		byte[] message = p.encode();
 		
@@ -111,6 +111,8 @@ public class Client {
 		}
 		if(sent)
 			TFTPInfoPrinter.printSent(request);
+		
+		return request;
 	}
 	
 	public void readFromServer(String filename, String mode) throws IOException{		
@@ -140,13 +142,13 @@ public class Client {
 		}
 		
 		
-		sendRequest(RequestPacket.readOpcode, filename, mode);
+		sendPacket = sendRequest(RequestPacket.readOpcode, filename, mode);
 		while (true) {
 			receivedData = new byte[bufferSize];
 			receivePacket = new DatagramPacket(receivedData, receivedData.length);
 			// receive block
 			
-			if(!packetReceiveWithTimeout(sendAndReceiveSocket, receivePacket))
+			if(!packetReceiveWithTimeout(sendAndReceiveSocket, receivePacket, sendPacket))
 			{
 				out.close();
 				return;
@@ -323,13 +325,13 @@ public class Client {
 			return;
 		}
 		
-		sendRequest(RequestPacket.writeOpcode, filename, mode);
+		sendPacket = sendRequest(RequestPacket.writeOpcode, filename, mode);
 		
 		while (true) {
 			// receive ACK from previous dataBlock
 			byte[] data = new byte[bufferSize];
 			receivePacket = new DatagramPacket(data, data.length);	
-			if(!packetReceiveWithTimeout(sendAndReceiveSocket, receivePacket))
+			if(!packetReceiveWithTimeout(sendAndReceiveSocket, receivePacket, sendPacket))
 			{
 				in.close();
 				return;

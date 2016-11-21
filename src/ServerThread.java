@@ -32,7 +32,7 @@ public class ServerThread extends Thread{
 	
 	//receives a packet on the socket given with a timeout of 5 seconds, eventually gives up after a few timeouts
 	//returns false if unsuccessful, true if successful
-	private boolean packetReceiveWithTimeout(DatagramSocket socket, DatagramPacket packet) throws IOException
+	private boolean packetReceiveWithTimeout(DatagramSocket socket, DatagramPacket packet, DatagramPacket resendPacket) throws IOException
 	{
 		socket.setSoTimeout(5000);		//set timeout to 5000 ms (5 seconds)
 		int numTimeouts = 0;
@@ -46,7 +46,8 @@ public class ServerThread extends Thread{
 			{
 				receivedOrSent = false;	
 				numTimeouts++;
-				System.out.print("Timed out, retrying transfer.");					
+				System.out.print("Timed out, retrying transfer.");
+				socket.send(resendPacket);
 			}
 		}
 		if(numTimeouts >= 5)
@@ -221,7 +222,7 @@ public class ServerThread extends Thread{
 			//receive the ACK from the client
 			byte[] ack = new byte[bufferSize];
 			receivePacket = new DatagramPacket(ack, ack.length);
-			if(!packetReceiveWithTimeout(sendReceiveSocket, receivePacket))
+			if(!packetReceiveWithTimeout(sendReceiveSocket, receivePacket, sendPacket))
 			{
 				in.close();
 				return;
@@ -351,7 +352,7 @@ public class ServerThread extends Thread{
 			receivedData = new byte[bufferSize];
 			receivePacket = new DatagramPacket(receivedData, receivedData.length);
 			// receive block
-			if(!packetReceiveWithTimeout(sendReceiveSocket, receivePacket))
+			if(!packetReceiveWithTimeout(sendReceiveSocket, receivePacket, sendPacket))
 			{
 				out.close();
 				return;

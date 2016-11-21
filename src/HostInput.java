@@ -22,17 +22,18 @@ public class HostInput extends Thread
 			byte[] code = new byte[2];
 			int delay = -1;
 			System.out.println("Enter Error Simulator mode:");
-			System.out.println("\t0 : normal operation\n\t1 : lose a packet\n\t2 : delay a packet\n\t3 : duplicate a packet");
+			System.out.println("\t0 : normal operation\n\t1 : lose a packet\n\t2 : delay a packet\n\t3 : duplicate a packet\n\t4 : corrupt a packet");
 			input = s.nextLine();
 			try{
 				mode = Integer.parseInt(input);
 				if(mode == 0){
 					//set to mode 0
-					host.setMode(mode,code,delay);
+					host.setMode(mode,code,delay, 0);
 				}
-				else if(mode > 0 && mode <= 3){
+				else if(mode > 0 && mode <= 5){
 					String type;
 					int num = -1;
+					int x = -1;
 					//Set packet type
 					do{
 						System.out.println("Enter Packet type to trigger error:");
@@ -52,7 +53,7 @@ public class HostInput extends Thread
 						}while(num < 0);
 					}
 					//set delay if needed
-					if(mode != 1){
+					if(mode == 2 || mode == 3){
 						do{
 							System.out.println("Enter delay length for packet (milliseconds):");
 							input = s.nextLine();
@@ -62,6 +63,31 @@ public class HostInput extends Thread
 								delay = -1;
 							}
 						}while(delay < 0);
+					}
+					if(mode == 4 && (type.equals("ACK") || type.equals("DATA"))){
+						do{
+							System.out.println("Choose what to corrupt:");
+							System.out.println("\t1 : opcode\n\t2 : block number");
+							input = s.nextLine();
+							try{
+								x = Integer.parseInt(input);
+							}catch(NumberFormatException e){
+								x = -1;
+							}
+						}while(x < 0);
+					}
+					else if(mode == 4){
+						do{
+							System.out.println("Choose what to corrupt:");
+							System.out.println("\t1 : opcode\n\t2 : 0 byte");
+							input = s.nextLine();
+							try{
+								x = Integer.parseInt(input);
+							}catch(NumberFormatException e){
+								x = -1;
+							}
+							if(x > 1) x++;
+						}while(x < 0);
 					}
 					switch(type){
 					case "RRQ":
@@ -85,7 +111,7 @@ public class HostInput extends Thread
 						code[3] = (byte)(num & 0xFF);
 						break;	
 					}
-					host.setMode(mode,code,delay);
+					host.setMode(mode,code,delay, x);
 				}
 				else{
 					System.err.println("Not a mode number");
