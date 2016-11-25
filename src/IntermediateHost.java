@@ -34,159 +34,220 @@ public class IntermediateHost {
 			System.exit(1);
 		}
 	}
-	private void reset() {
-		mode = 0;
-		corruptSeg = 0;
-		code = new byte[2];
-		data2 = null;
-		delay = 0;
-		isTarget = false;
-		isDrop = false;
-		//newBlock = {0,0};
-		modeStr = "";
-		filename = "";
-	}
 	
-	public void receiveAndSend() throws InterruptedException, IOException
+	public void receiveAndSend() throws InterruptedException
 	{
 		int clientPort, serverPort = 69;
 		HostInput errorModeCommand = new HostInput("Host Input Handler", this);
 		errorModeCommand.start();
-		
-		byte[] data = new byte[516];
-		byte[] tmpData;
-		
-		
-		// IH logic
-		// REPEAT:
-		// 	Receive from client
-		// 	Check if it is the target packet
-		//   if so do thing
-		//  Send to server
-		//  Receive from server
-		//  Check if it is target packet
-		//   if so do thing
-		//  Send to client
-		
-		
-		while (true) {
+		while(true)
+		{
+			byte data[] = new byte[516];
+			
 			// Receive from client
 			receivePacket = new DatagramPacket(data, data.length);
-			receiveSocket.receive(receivePacket);
+			
+			do{
+				try{
+					System.out.println("Waiting for packet from client");
+					receiveSocket.receive(receivePacket);
+					
+				}catch(IOException e)
+				{
+					System.out.print("IO Exception, likely receive socket timeout");
+					e.printStackTrace();
+					System.exit(1);
+				}
+				// End receive from client
+				
+				// Send to Server
+				data2 = Arrays.copyOf(receivePacket.getData(),  receivePacket.getLength());
+				isTarget = checkData(data2);
+				if(isTarget && mode == 1){
+					mode = 0;
+					System.out.println("Packet Dropped");
+				}
+				else{
+					isDrop = false;
+				}
+			}while(isDrop);
+			
 			TFTPInfoPrinter.printReceived(receivePacket);
-			
-			tmpData = Arrays.copyOf(receivePacket.getData(), receivePacket.getLength());
-			
-			// Check if it is the target packet
-			if (isTargetPacket(tmpData)) {
-				sendSpecially(tmpData, InetAddress.getLocalHost(), serverPort);
-			}
-			// Send the packet to the server normally
-			else {
-				sendPacket = new DatagramPacket(tmpData, tmpData.length, InetAddress.getLocalHost(), serverPort);
-				sendAndReceiveSocket.send(sendPacket);
-				TFTPInfoPrinter.printSent(sendPacket);
-			}
 			
 			InetAddress clientAddress = receivePacket.getAddress();
 			clientPort = receivePacket.getPort();
 			
-			// Receive from server
-			receivePacket = new DatagramPacket(data, data.length);
-			sendAndReceiveSocket.receive(receivePacket);
-			TFTPInfoPrinter.printReceived(receivePacket);
-			
-			serverPort = receivePacket.getPort();
-			
-			tmpData = Arrays.copyOf(receivePacket.getData(), receivePacket.getLength());
-			
-			// Check if it is the target packet
-			if (isTargetPacket(tmpData)) {
-				sendSpecially(tmpData, InetAddress.getLocalHost(), clientPort);
-			}
-			// Send packet to client normally
-			else {
-				sendPacket = new DatagramPacket(tmpData, tmpData.length, clientAddress, clientPort);
-				receiveSocket.send(sendPacket);
-				TFTPInfoPrinter.printSent(sendPacket);
-			}
-		}
-		
-		
-		/*
-		
-		// End send to Client
-		*/
-	}
-	
-	private void sendSpecially(byte[] data, DatagramPacket sendPacket) {
-		if(mode == 1){
-			mode = 0;
-			System.out.println("Packet Dropped");
-		}
-		else if (mode == 2) {
-			try {
-				TimeUnit.MILLISECONDS.sleep(delay);
-				sendAndReceiveSocket.send(sendPacket);
-			} catch (InterruptedException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
-			} catch (IOException ioe) {
-				ioe.printStackTrace();
-			}			
-		}
-		
-		else if (mode == 3) {
-			try {
-				sendAndReceiveSocket.send(sendPacket);
-				TimeUnit.MILLISECONDS.sleep(delay);
-				sendAndReceiveSocket.send(sendPacket);
-			} catch (InterruptedException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
-			} catch (IOException ioe) {
-				ioe.printStackTrace();
-			}
-		}
-		
-		else if (mode == 4) {
-			if(corruptSeg == 1){
-				//change opcode
-				data2[0] = newBlock[0];
-				data2[1] = newBlock[1];
-			}
-			else if(corruptSeg == 2){
-				//change block number
-				data2[2] = newBlock[0];
-				data2[3] = newBlock[1];
-			}
-			else if(corruptSeg == 3){
-				//change end 0 byte to a value
-				data2[data2.length - 1] = 1;
-			}
-			else if(corruptSeg == 4){
-				//change mode
-				byte[] reqType = {data2[0], data2[1]};
-				filename = "";
-				for(int i = 2; data2[i] != 0; i++){
-					filename += data2[i];
+			if(isTarget && mode == 4){
+				//corrupt packet
+				if(corruptSeg == 1){
+					//change opcode
+					data2[0] = newBlock[0];
+					data2[1] = newBlock[1];
 				}
-				RequestPacket p = new RequestPacket(reqType, filename, modeStr);
-				data2 = p.encode();
+				else if(corruptSeg == 2){
+					//change block number
+					data2[2] = newBlock[0];
+					data2[3] = newBlock[1];
+				}
+				else if(corruptSeg == 3){
+					//change end 0 byte to a value
+					data2[data2.length - 1] = 1;
+				}
+
+				else if(corruptSeg == 4){
+					//change mode
+					byte[] reqType = {data2[0], data2[1]};
+					filename = "";
+					for(int i = 2; data2[i] != 0; i++){
+						filename += data2[i];
+					}
+					RequestPacket p = new RequestPacket(reqType, filename, modeStr);
+					data2 = p.encode();
+				}
 			}
+			InetAddress addr = null;
+			try {
+				addr = InetAddress.getLocalHost();
+			} catch (UnknownHostException e2) {
+				// TODO Auto-generated catch block
+				e2.printStackTrace();
+			}
+			if(isTarget && mode == 5){
+				try {
+					addr = InetAddress.getByName("192.168.1.1");
+				} catch (UnknownHostException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
+			}
+			
+			sendPacket = new DatagramPacket(data2, data2.length, addr, serverPort);
+			try{
+				if(isTarget && mode == 2){
+					TimeUnit.MILLISECONDS.sleep(delay);
+					sendAndReceiveSocket.send(sendPacket);
+				}
+				else if(isTarget && mode == 3){
+					sendAndReceiveSocket.send(sendPacket);
+					TimeUnit.MILLISECONDS.sleep(delay);
+					sendAndReceiveSocket.send(sendPacket);
+				}
+				else if(!(isTarget && mode == 1)){
+					sendAndReceiveSocket.send(sendPacket);
+				}
+			}catch(IOException e)
+			{
+				e.printStackTrace();
+				System.exit(1);
+			}
+			TFTPInfoPrinter.printSent(sendPacket);	
+			
+			//return to normal operation
+			if(isTarget){
+				mode = 0;
+			}
+			// End send to server
+			
+			// Receive from Server
+			do{
+				try{
+					System.out.println("Waiting for packet from server");
+					sendAndReceiveSocket.receive(receivePacket);
+				}catch(IOException e)
+				{
+					System.out.print("IO Exception, likely receive socket timeout");
+					e.printStackTrace();
+					System.exit(1);
+				}
+				serverPort = receivePacket.getPort();
+				isTarget = checkData(receivePacket.getData());
+				if(isTarget && mode == 1){
+					mode = 0;
+					System.out.println("Packet Dropped");
+				}
+				else{
+					isDrop = false;
+				}
+			}while(isDrop);
+			
+			TFTPInfoPrinter.printReceived(receivePacket);
+			// End receive from Server
+			
+			data2 = receivePacket.getData();
+			if(isTarget && mode == 4){
+				//corrupt packet
+				if(corruptSeg == 1){
+					//change opcode
+					data2[0] = newBlock[0];
+					data2[1] = newBlock[1];
+				}
+				else if(corruptSeg == 2){
+					//change block number
+					data2[2] = newBlock[0];
+					data2[3] = newBlock[1];
+				}
+				else if(corruptSeg == 3){
+					//change end 0 byte to a value
+					data2[data2.length - 1] = 1;
+				}
+
+				else if(corruptSeg == 4){
+					//change mode
+					byte[] reqType = {data2[0], data2[1]};
+					filename = "";
+					for(int i = 2; data2[i] != 0; i++){
+						filename += data2[i];
+					}
+					RequestPacket p = new RequestPacket(reqType, filename, modeStr);
+					data2 = p.encode();
+				}
+			}
+			
+			// Send to Client
 			sendPacket.setData(data2);
 			sendPacket.setLength(receivePacket.getLength());
-		}
-		else if (mode == 5) {
-			try {
-				InetAddress addr = InetAddress.getByName("192.168.1.1");
-			} catch (UnknownHostException e) {
-				// TODO Auto-generated catch block
+			sendPacket.setPort(clientPort);
+			
+			addr = clientAddress;
+			if(isTarget && mode == 5){
+				try {
+					addr = InetAddress.getByName("192.168.1.1");
+				} catch (UnknownHostException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
+			}
+			sendPacket.setAddress(clientAddress);
+			try{
+				if(isTarget && mode == 2){
+					TimeUnit.MILLISECONDS.sleep(delay);
+					receiveSocket.send(sendPacket);
+				}
+				else if(isTarget && mode == 3){
+					receiveSocket.send(sendPacket);
+					TimeUnit.MILLISECONDS.sleep(delay);
+					receiveSocket.send(sendPacket);
+				}
+				else if(!(isTarget && mode == 1)){
+					receiveSocket.send(sendPacket);
+				}
+			}catch(IOException e)
+			{
 				e.printStackTrace();
+				System.exit(1);
+			}
+			
+			System.out.println("Intermediate Host: Packet sent");
+			
+			//return to normal operation
+			if(isTarget){
+				mode = 0;
 			}
 		}
-
+		// End send to Client
+		
 	}
+	
 	public static void main(String args[]) throws InterruptedException
 	{
 		System.out.println("Choose whether you would like to run in quiet or verbose mode (q/v):");
@@ -203,13 +264,7 @@ public class IntermediateHost {
 		//try{
 		//	Thread.sleep(100);
 		//}catch(InterruptedException e){}
-		try {
-			host.receiveAndSend();
-		} catch (IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
-		
+		host.receiveAndSend();
 	}
 	
 	public void setMode(int m, byte[] c, byte[] nc, int d){
@@ -243,12 +298,13 @@ public class IntermediateHost {
 		System.out.println("] with delay of " + d);
 	}
 	
-	public boolean isTargetPacket(byte[] data){
+	public boolean checkData(byte[] data){
+		boolean state = true;
 		for(int i = 0; i < code.length; i++){
-			if(data[i] != code[i]){
-				return false;
+			if(state == true && data[i] != code[i]){
+				state = false;
 			}
 		}
-		return true;
+		return state;
 	}
 }
