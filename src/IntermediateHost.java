@@ -81,11 +81,11 @@ public class IntermediateHost {
 				sendSpecially(p.getData(), p.getLength(), addr, port);
 			}
 			else {
-				p.setPort(port);
-				p.setAddress(addr);
-				sendAndReceiveSocket.send(p);
+				DatagramPacket sendPacket = new DatagramPacket(p.getData(), p.getLength(), addr, port);
+				sendAndReceiveSocket.send(sendPacket);
+				TFTPInfoPrinter.printSent(sendPacket);
 			}
-			TFTPInfoPrinter.printSent(p);
+			
 			p = new DatagramPacket(data, data.length);
 			sendAndReceiveSocket.receive(p);
 			
@@ -135,6 +135,8 @@ public class IntermediateHost {
 		// Corrupt the packet
 		else if (mode == 4) {
 			System.out.println("Corrupting packet");
+			System.out.println("CorruptSeg=" + corruptSeg);
+			
 			//corrupt packet
 			if(corruptSeg == 1){
 				//change opcode
@@ -154,6 +156,7 @@ public class IntermediateHost {
 			try {
 				// May or may not be necessary.
 				sendPacket.setData(data);
+				sendPacket.setLength(length);
 				sendAndReceiveSocket.send(sendPacket);
 			} catch (IOException ioe) {
 				
@@ -167,7 +170,7 @@ public class IntermediateHost {
 				
 			}
 		}
-		
+		TFTPInfoPrinter.printSent(sendPacket);
 		mode = 0;
 	}
 	
