@@ -216,8 +216,6 @@ public class ServerThread extends Thread{
 		{
 			byte[] dataBlock = new byte[blockSize];
 
-			
-			
 			// Don't send anything if the ACK previous ACK packet obtained was a duplicate.
 			if (!duplicateACKPacket) {
 				try {
@@ -241,9 +239,6 @@ public class ServerThread extends Thread{
 				}
 				TFTPInfoPrinter.printSent(sendPacket);
 			}
-			
-			
-			
 			//receive the ACK from the client
 			byte[] ack = new byte[bufferSize];
 			receivePacket = new DatagramPacket(ack, ack.length);
@@ -251,6 +246,11 @@ public class ServerThread extends Thread{
 			{
 				in.close();
 				return;
+			}
+			if(receivePacket.getAddress() != sendPacket.getAddress() || receivePacket.getPort() != sendPacket.getPort())
+			{
+				System.err.println("Unknown port or address, discarding.");
+				continue;
 			}
 			TFTPInfoPrinter.printReceived(receivePacket);
 			
@@ -390,12 +390,16 @@ public class ServerThread extends Thread{
 				out.close();
 				return;
 			}
+			if(receivePacket.getAddress() != sendPacket.getAddress() || receivePacket.getPort() != sendPacket.getPort())
+			{
+				System.err.println("Unknown port or address, discarding.");
+				continue;
+			}
 			TFTPInfoPrinter.printReceived(receivePacket);
 			
 			// validate packet
 			receivedData = Arrays.copyOf(receivePacket.getData(), receivePacket.getLength());
 
-			
 			opcode = Arrays.copyOf(receivedData, 2);
 
 			if (Arrays.equals(opcode, ErrorPacket.opcode)){
