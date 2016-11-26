@@ -262,6 +262,10 @@ public class ServerThread extends Thread{
 			if(!receivePacket.getAddress().equals(clientAddress) || receivePacket.getPort() != clientPort)
 			{
 				System.err.println("Packet from unknown address or port, discarding.");
+				
+				ErrorPacket ep = new ErrorPacket((byte)5, "Packet from unknown address or port, discarding.");
+				sendReceiveSocket.send(new DatagramPacket(ep.encode(), ep.encode().length, receivePacket.getAddress(), receivePacket.getPort()));
+				
 				// reuse duplicate packet logic to prevent reading from file again.
 				duplicateACKPacket = true;
 				continue;
@@ -420,6 +424,9 @@ public class ServerThread extends Thread{
 			{
 				System.err.println("Packet from unknown address or port, discarding.");
 				// Reuse duplicate packet logic to prevent incrementing block number.
+				ErrorPacket ep = new ErrorPacket((byte)5, "Packet from unknown address or port, discarding.");
+				sendReceiveSocket.send(new DatagramPacket(ep.encode(), ep.encode().length, receivePacket.getAddress(), receivePacket.getPort()));
+				
 				duplicateDataPacket = true;
 				continue;
 			}
