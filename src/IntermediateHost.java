@@ -14,13 +14,10 @@ public class IntermediateHost {
 	private int mode = 0;
 	private int corruptSeg = 0;
 	private byte[] code = new byte[2];
-	byte[] data2;
 	private int delay = 0;
-	private boolean isTarget = false;
-	private boolean isDrop = false;
-	byte[] newBlock = {0,0};
-	String modeStr = "";
-	String filename = "";
+	private byte[] newBlock = {0,0};
+	private String modeStr = "";
+	private String filename = "";
 	
 	private final int serverWellKnownPort = 69;
 	private final int hostWellKnownPort = 23;
@@ -78,12 +75,13 @@ public class IntermediateHost {
 			else if (p.getPort() == serverPort) {
 				port = clientPort;
 			}
-			if (isTargetPacket(p.getData())) {
+			if (mode != 0 && isTargetPacket(p.getData())) {
 				
 				sendSpecially(p.getData(), addr, port);
 			}
 			else {
 				p.setPort(port);
+				p.setAddress(addr);
 				sendAndReceiveSocket.send(p);
 			}
 			TFTPInfoPrinter.printSent(p);
@@ -100,12 +98,9 @@ public class IntermediateHost {
 	
 	private void sendSpecially(byte[] data, InetAddress addr, int port) {
 		DatagramPacket sendPacket = new DatagramPacket(data, data.length, addr, port);
-		
-		if (mode == 0) {
-			
-		}
+
 		// Drop packet
-		else if (mode == 1) {
+		if (mode == 1) {
 			// Do nothing (packet dropped)
 		}
 		// Delay packet
@@ -135,7 +130,29 @@ public class IntermediateHost {
 		}
 		// Corrupt the packet
 		else if (mode == 4) {
+			//corrupt packet
+			if(corruptSeg == 1){
+				//change opcode
+				data[0] = newBlock[0];
+				data[1] = newBlock[1];
+			}
+			else if(corruptSeg == 2){
+				//change block number
+				data[2] = newBlock[0];
+				data[3] = newBlock[1];
+			}
+			else if(corruptSeg == 3){
+				//change end 0 byte to a value
+				data[data.length - 1] = 1;
+			}
 			
+			try {
+				// May or may not be necessary.
+				sendPacket.setData(data);
+				sendAndReceiveSocket.send(sendPacket);
+			} catch (IOException ioe) {
+				
+			}
 		}
 		// ???
 		else if (mode == 5) {
@@ -162,7 +179,6 @@ public class IntermediateHost {
 		try {
 			host.receiveAndSend();
 		} catch (Exception e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
 	}
