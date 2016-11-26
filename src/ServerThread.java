@@ -192,32 +192,38 @@ public class ServerThread extends Thread{
 		} 
 		
 			
-		
+		boolean duplicateACKPacket = false;
 		while(true)
 		{
 			byte[] dataBlock = new byte[blockSize];
 
 			int bytesRead = 0;
-			try {
-				bytesRead = in.read(dataBlock);
-			} catch (IOException e) {
+			
+			// Don't send anything if the ACK previous ACK packet obtained was a duplicate.
+			if (!duplicateACKPacket) {
+				try {
+					bytesRead = in.read(dataBlock);
+				} catch (IOException e) {
+					
+				}
 				
+				if (bytesRead == -1) bytesRead = 0; 
+				dataBlock = Arrays.copyOf(dataBlock, bytesRead);
+				
+				DataPacket dp = new DataPacket(currentBlockNumber, dataBlock);
+				data = dp.encode();
+				
+				//send the data to the client
+				sendPacket = new DatagramPacket(data, data.length, receivePacket.getAddress(), receivePacket.getPort());
+				if(!packetSendWithTimeout(sendReceiveSocket, sendPacket))
+				{
+					in.close();
+					return;
+				}
+				TFTPInfoPrinter.printSent(sendPacket);
 			}
 			
-			if (bytesRead == -1) bytesRead = 0; 
-			dataBlock = Arrays.copyOf(dataBlock, bytesRead);
 			
-			DataPacket dp = new DataPacket(currentBlockNumber, dataBlock);
-			data = dp.encode();
-			
-			//send the data to the client
-			sendPacket = new DatagramPacket(data, data.length, receivePacket.getAddress(), receivePacket.getPort());
-			if(!packetSendWithTimeout(sendReceiveSocket, sendPacket))
-			{
-				in.close();
-				return;
-			}
-			TFTPInfoPrinter.printSent(sendPacket);
 			
 			//receive the ACK from the client
 			byte[] ack = new byte[bufferSize];
@@ -251,6 +257,7 @@ public class ServerThread extends Thread{
 				return;
 			}
 			byte[] dataReceived = Arrays.copyOf(receivePacket.getData(), receivePacket.getLength());
+
 			
 			if (!AckPacket.isValid(dataReceived)) {
 				// Send ErrorPacket with error code 04 and stop transfer.
@@ -262,8 +269,7 @@ public class ServerThread extends Thread{
 			
 			int blockNum = ap.getBlockNum();
 			
-			
-			boolean duplicateDataPacket = false;
+			duplicateACKPacket = false; // Set to false, so next loop will continue transferring properly if next ACK isn't also duplicate.
 			if (blockNum != currentBlockNumber) {
 				
 				if (blockNum < 0) {
@@ -276,7 +282,7 @@ public class ServerThread extends Thread{
 					if(currentBlockNumber > blockNum)
 					{
 						//received duplicate data packet
-						duplicateDataPacket = true;
+						duplicateACKPacket = true;
 					}
 					else {
 						// Send ErrorPacket with error code 04 and stop transfer.
@@ -289,7 +295,8 @@ public class ServerThread extends Thread{
 			
 			if (bytesRead < 512) break;
 			//get ready to send the next block of bytes
-			currentBlockNumber++;
+			
+			if (!duplicateACKPacket) currentBlockNumber++;
 		}
 		in.close();
 		System.out.println("Transfer complete");

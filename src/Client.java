@@ -327,6 +327,7 @@ public class Client {
 		}
 		
 		sendPacket = sendRequest(RequestPacket.writeOpcode, filename, mode);
+		boolean duplicateACKPacket = false;
 		
 		while (true) {
 			// receive ACK from previous dataBlock
@@ -374,7 +375,7 @@ public class Client {
 			// need block number
 			int blockNum = ap.getBlockNum();
 			
-			boolean duplicateDataPacket = false;
+			duplicateACKPacket = false;
 			if (blockNum != currentBlockNumber) {
 				
 				if (blockNum == 0) {
@@ -387,7 +388,7 @@ public class Client {
 					if(currentBlockNumber > blockNum)
 					{
 						//received duplicate data packet
-						duplicateDataPacket = true;
+						duplicateACKPacket = true;
 						currentBlockNumber += 65536; // Restore block number since packet was a duplicate
 					}
 					else {
@@ -399,28 +400,32 @@ public class Client {
 				}
 			}
 			
-			// increment block number then send that block
-			currentBlockNumber++;
-			
-			byte[] dataBlock = new byte[blockSize];
-			
-			// Resize dataBlock to total bytes read
-			int bytesRead = in.read(dataBlock);
-			if (bytesRead == -1) bytesRead = 0;
-			dataBlock = Arrays.copyOf(dataBlock, bytesRead);
-			
-			DataPacket dp = new DataPacket(currentBlockNumber, dataBlock);
-			byte[] sendData = dp.encode();
-			// Initial request was sent to wellKnownPort, but steady state file transfer should happen on another port.
-			sendPacket = new DatagramPacket(sendData, sendData.length, InetAddress.getLocalHost(), receivePacket.getPort());
-			if(!packetSendWithTimeout(sendAndReceiveSocket, sendPacket))
-			{
-				in.close();
-				return;
+			// Just ignore the duplicate ACK
+			if (!duplicateACKPacket) {
+				// increment block number then send that block
+				currentBlockNumber++;
+				
+				byte[] dataBlock = new byte[blockSize];
+				
+				// Resize dataBlock to total bytes read
+				int bytesRead = in.read(dataBlock);
+				if (bytesRead == -1) bytesRead = 0;
+				dataBlock = Arrays.copyOf(dataBlock, bytesRead);
+				
+				DataPacket dp = new DataPacket(currentBlockNumber, dataBlock);
+				byte[] sendData = dp.encode();
+				// Initial request was sent to wellKnownPort, but steady state file transfer should happen on another port.
+				sendPacket = new DatagramPacket(sendData, sendData.length, InetAddress.getLocalHost(), receivePacket.getPort());
+				if(!packetSendWithTimeout(sendAndReceiveSocket, sendPacket))
+				{
+					in.close();
+					return;
+				}
+				TFTPInfoPrinter.printSent(sendPacket);
+				
+				if (bytesRead < 512) break;
 			}
-			TFTPInfoPrinter.printSent(sendPacket);
 			
-			if (bytesRead < 512) break;
 		}
 		
 		in.close();
