@@ -181,6 +181,7 @@ public class Client {
 			// If it is not an error packet or an DATA packet, something happened (these cases are in later iterations).
 			else if (!Arrays.equals(receivedOpcode, DataPacket.opcode)) {
 				// Send ErrorPacket with error code 04 and stop transfer.
+				System.err.println("Was expecting a DATA packet.");
 				ErrorPacket ep = new ErrorPacket((byte)4, "Was expecting a DATA packet.");
 				sendAndReceiveSocket.send(new DatagramPacket(ep.encode(), ep.encode().length, InetAddress.getLocalHost(), receivePacket.getPort()));
 				return;
@@ -188,6 +189,7 @@ public class Client {
 			
 			// If the data packet is malformed, send error code 04 and stop transfer.
 			if (!DataPacket.isValid(receivedData)) {
+				System.err.println("DATA packet was malformed");
 				ErrorPacket ep = new ErrorPacket((byte)4, "DATA packet was malformed.");
 				sendAndReceiveSocket.send(new DatagramPacket(ep.encode(), ep.encode().length, InetAddress.getLocalHost(), receivePacket.getPort()));
 				return;
@@ -366,11 +368,13 @@ public class Client {
 			// If it is not an error packet or an ACK packet, something happened (these cases are in later iterations).
 			else if (!Arrays.equals(receivedOpcode, AckPacket.opcode)) {
 				// Send ErrorPacket with error code 04 and stop transfer.
+				System.err.println("Was expecting an ACK, got unknown opcode instead");
 				ErrorPacket ep = new ErrorPacket((byte)4, "Was expecting a ACK packet.");
 				sendAndReceiveSocket.send(new DatagramPacket(ep.encode(), ep.encode().length, InetAddress.getLocalHost(), receivePacket.getPort()));
 				return;
 			}
 			if (!AckPacket.isValid(receivedData)) {
+				System.err.println("ACK packet was malformed");
 				ErrorPacket ep = new ErrorPacket((byte)4, "ACK packet was malformed.");
 				sendAndReceiveSocket.send(new DatagramPacket(ep.encode(), ep.encode().length, InetAddress.getLocalHost(), receivePacket.getPort()));
 				return;
