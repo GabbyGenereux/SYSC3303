@@ -138,6 +138,9 @@ public class ServerThread extends Thread{
 	void writeToClient(String filename) throws IOException
 	{
 		System.out.println("Writing to client: " + filename);
+		InetAddress clientAddress = null;
+		int clientPort = -1;
+		
 		//Create socket to send out packets and receive ACKs
 		try 
 		{
@@ -247,9 +250,15 @@ public class ServerThread extends Thread{
 				in.close();
 				return;
 			}
-			if(receivePacket.getAddress() != sendPacket.getAddress() || receivePacket.getPort() != sendPacket.getPort())
+			// Initial transfer, setup address to check for in future packets.
+			if (clientAddress == null && clientPort == -1) {
+				clientAddress = receivePacket.getAddress();
+				clientPort = receivePacket.getPort();
+			}
+						
+			if(!receivePacket.getAddress().equals(clientAddress) || receivePacket.getPort() != clientPort)
 			{
-				System.err.println("Unknown port or address, discarding.");
+				System.err.println("Packet from unknown address or port, discarding.");
 				continue;
 			}
 			TFTPInfoPrinter.printReceived(receivePacket);
@@ -329,6 +338,9 @@ public class ServerThread extends Thread{
 	
 	public void readFromClient(String filename) throws IOException{
 		System.out.println("Reading from client: " + filename);
+		
+		InetAddress clientAddress = null;
+		int clientPort = -1;
 	
 		// Already received request
 		// Send ACK with blockNumber 0 ... N;
@@ -390,9 +402,15 @@ public class ServerThread extends Thread{
 				out.close();
 				return;
 			}
-			if(receivePacket.getAddress() != sendPacket.getAddress() || receivePacket.getPort() != sendPacket.getPort())
+			// Initial transfer, setup address to check for in future packets.
+			if (clientAddress == null && clientPort == -1) {
+				clientAddress = receivePacket.getAddress();
+				clientPort = receivePacket.getPort();
+			}
+									
+			if(!receivePacket.getAddress().equals(clientAddress) || receivePacket.getPort() != clientPort)
 			{
-				System.err.println("Unknown port or address, discarding.");
+				System.err.println("Packet from unknown address or port, discarding.");
 				continue;
 			}
 			TFTPInfoPrinter.printReceived(receivePacket);
