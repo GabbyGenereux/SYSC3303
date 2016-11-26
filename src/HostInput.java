@@ -36,17 +36,12 @@ public class HostInput extends Thread
 				else if(mode == 4 || mode == 5){
 					newByte = getCodeBytes();
 				}
-				else if(mode == 7){
-					newByte = getNewMode().getBytes();
+				code = getCode(getOpcode(type),num);
+				if(mode == 4){
+					newCode = getCode(newByte,num);
 				}
-				if(mode != 7){
-					code = getCode(getOpcode(type),num);
-					if(mode == 4){
-						newCode = getCode(newByte,num);
-					}
-					else if(mode == 5){
-						newCode = getCode(getOpcode(type),newByte);
-					}
+				else if(mode == 5){
+					newCode = getCode(getOpcode(type),newByte);
 				}
 			}
 			
@@ -58,7 +53,7 @@ public class HostInput extends Thread
 	private int getModeNumber(){
 		int mode = -1;
 		System.out.println("Enter Error Simulator mode:");
-		System.out.println("\t0 : normal operation\n\t1 : lose a packet\n\t2 : delay a packet\n\t3 : duplicate a packet\n\t4 : change packet opcode\n\t5 : change packet block number\n\t6 : replace a zero byte\n\t7 : corrupt mode type");
+		System.out.println("\t0 : normal operation\n\t1 : lose a packet\n\t2 : delay a packet\n\t3 : duplicate a packet\n\t4 : change packet opcode\n\t5 : change packet block number\n\t6 : replace a zero byte\n\t7 : change port during transfer");
 		do{
 			String m = s.nextLine();
 			try{
@@ -162,10 +157,10 @@ public class HostInput extends Thread
 		case "WRQ":
 			code[1] = 2;
 			break;
-		case "ACK":
+		case "DATA":
 			code[1] = 3;
 			break;	
-		case "DATA":
+		case "ACK":
 			code[1] = 4;
 			break;	
 		}

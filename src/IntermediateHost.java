@@ -10,7 +10,7 @@ import java.util.concurrent.TimeUnit;
 
 public class IntermediateHost {
 	
-	private DatagramSocket receiveSocket, sendAndReceiveSocket;
+	private DatagramSocket receiveSocket, sendAndReceiveSocket, sendAndReceiveSocketAlt;
 	private int mode = 0;
 	private int corruptSeg = 0;
 	private byte[] code = new byte[2];
@@ -27,6 +27,7 @@ public class IntermediateHost {
 		try{
 			receiveSocket = new DatagramSocket(23);
 			sendAndReceiveSocket = new DatagramSocket();
+			sendAndReceiveSocketAlt = new DatagramSocket(50);
 		}catch(SocketException e)
 		{
 			e.printStackTrace();
@@ -158,9 +159,13 @@ public class IntermediateHost {
 				
 			}
 		}
-		// ???
+		// send from different socket
 		else if (mode == 5) {
-			
+			try {
+				sendAndReceiveSocketAlt.send(sendPacket);
+			} catch (IOException e) {
+				
+			}
 		}
 		
 		mode = 0;
@@ -193,21 +198,15 @@ public class IntermediateHost {
 		if(m < 4){
 			mode = m;
 		}
+		else if(m == 7){
+			mode = 5;
+		}
 		else{
 			mode = 4;
 			corruptSeg = m-4;
 		}
 		code = c;
-		if(mode == 7){
-			modeStr = "";
-			for(int k = 0; k < nc.length; k++)
-			{
-				modeStr += nc[k];
-			}
-		}
-		else{
-			newBlock = nc;
-		}
+		newBlock = nc;
 		delay = d;
 		System.out.print("Mode set to " + m + " for packet [ ");
 		for(int i = 0; i < c.length; i++){
