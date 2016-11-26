@@ -84,12 +84,16 @@ public class ServerThread extends Thread{
 		return true;
 	}
 	public void run(){
-		/*
-		if (!RequestPacket.isValid(receivedData)){
+		try {
+			sendReceiveSocket = new DatagramSocket();
+		} catch (SocketException e1) {
+			e1.printStackTrace();
+		}
+		/*if (!RequestPacket.isValid(receivePacket.getData())){
 			// Send error code 04 and stop transfer
 			ErrorPacket ep = new ErrorPacket((byte)4, "DATA block number not in sequence or duplicate.");
 			try {
-				sendReceiveSocket.send(new DatagramPacket(ep.encode(), ep.encode().length));
+				sendReceiveSocket.send(new DatagramPacket(ep.encode(), ep.encode().length, receivePacket.getAddress(), receivePacket.getPort()));
 			} catch (IOException e) {
 				e.printStackTrace();
 			}
@@ -108,6 +112,15 @@ public class ServerThread extends Thread{
 		else if (Arrays.equals(opcode, RequestPacket.writeOpcode)){
 			try {
 				readFromClient(file);
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
+		}
+		else
+		{
+			ErrorPacket ep = new ErrorPacket((byte)4, "Invalid opcode.");
+			try {
+				sendReceiveSocket.send(new DatagramPacket(ep.encode(), ep.encode().length, receivePacket.getAddress(), receivePacket.getPort()));
 			} catch (IOException e) {
 				e.printStackTrace();
 			}
@@ -228,8 +241,6 @@ public class ServerThread extends Thread{
 			}
 			TFTPInfoPrinter.printReceived(receivePacket);
 			
-			//TODO: Need to validate ACK still
-			
 			opcode = Arrays.copyOf(receivePacket.getData(), 2);
 
 			if (Arrays.equals(opcode, ErrorPacket.opcode)){
@@ -290,6 +301,15 @@ public class ServerThread extends Thread{
 			//get ready to send the next block of bytes
 			currentBlockNumber++;
 		}
+		//receive the last ACK
+		byte[] ack = new byte[bufferSize];
+		receivePacket = new DatagramPacket(ack, ack.length);
+		if(!packetReceiveWithTimeout(sendReceiveSocket, receivePacket))
+		{
+			in.close();
+			return;
+		}
+		TFTPInfoPrinter.printReceived(receivePacket);
 		in.close();
 		System.out.println("Transfer complete");
 	}
