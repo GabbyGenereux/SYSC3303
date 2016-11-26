@@ -266,6 +266,7 @@ public class ServerThread extends Thread{
 				// Send ErrorPacket with error code 04 and stop transfer.
 				ErrorPacket ep = new ErrorPacket((byte)4, "Was expecting a ACK packet.");
 				sendReceiveSocket.send(new DatagramPacket(ep.encode(), ep.encode().length, InetAddress.getLocalHost(), receivePacket.getPort()));
+				in.close();
 				return;
 			}
 			byte[] dataReceived = Arrays.copyOf(receivePacket.getData(), receivePacket.getLength());
@@ -275,6 +276,7 @@ public class ServerThread extends Thread{
 				// Send ErrorPacket with error code 04 and stop transfer.
 				ErrorPacket ep = new ErrorPacket((byte)4, "ACK packet was malformed.");
 				sendReceiveSocket.send(new DatagramPacket(ep.encode(), ep.encode().length, InetAddress.getLocalHost(), receivePacket.getPort()));
+				in.close();
 				return;
 			}
 			AckPacket ap = new AckPacket(dataReceived);
@@ -304,6 +306,7 @@ public class ServerThread extends Thread{
 						// Send ErrorPacket with error code 04 and stop transfer.
 						ErrorPacket ep = new ErrorPacket((byte)4, "ACK packet block number not in sequence or duplicate.");
 						sendReceiveSocket.send(new DatagramPacket(ep.encode(), ep.encode().length, InetAddress.getLocalHost(), receivePacket.getPort()));
+						in.close();
 						return;
 					}
 				}
@@ -412,6 +415,7 @@ public class ServerThread extends Thread{
 				// Send ErrorPacket with error code 04 and stop transfer.
 				ErrorPacket ep = new ErrorPacket((byte)4, "Was expecting DATA packet.");
 				sendReceiveSocket.send(new DatagramPacket(ep.encode(), ep.encode().length, InetAddress.getLocalHost(), receivePacket.getPort()));
+				out.close();
 				return;
 			}
 			
@@ -419,6 +423,7 @@ public class ServerThread extends Thread{
 				// Send ErrorPacket with error code 04 and stop transfer.
 				ErrorPacket ep = new ErrorPacket((byte)4, "DATA packet was malformed.");
 				sendReceiveSocket.send(new DatagramPacket(ep.encode(), ep.encode().length, InetAddress.getLocalHost(), receivePacket.getPort()));
+				out.close();
 				return;
 			}
 			DataPacket dp = new DataPacket(receivedData);
@@ -444,6 +449,7 @@ public class ServerThread extends Thread{
 						// Send ErrorPacket with error code 04 and stop transfer.
 						ErrorPacket ep = new ErrorPacket((byte)4, "DATA packet block number not in sequence or duplicate.");
 						sendReceiveSocket.send(new DatagramPacket(ep.encode(), ep.encode().length, InetAddress.getLocalHost(), receivePacket.getPort()));
+						out.close();
 						return;
 					}
 				}

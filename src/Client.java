@@ -184,6 +184,7 @@ public class Client {
 				System.err.println("Was expecting a DATA packet.");
 				ErrorPacket ep = new ErrorPacket((byte)4, "Was expecting a DATA packet.");
 				sendAndReceiveSocket.send(new DatagramPacket(ep.encode(), ep.encode().length, InetAddress.getLocalHost(), receivePacket.getPort()));
+				out.close();
 				return;
 			}
 			
@@ -192,6 +193,7 @@ public class Client {
 				System.err.println("DATA packet was malformed");
 				ErrorPacket ep = new ErrorPacket((byte)4, "DATA packet was malformed.");
 				sendAndReceiveSocket.send(new DatagramPacket(ep.encode(), ep.encode().length, InetAddress.getLocalHost(), receivePacket.getPort()));
+				out.close();
 				return;
 			}
 			DataPacket dp = new DataPacket(receivedData);
@@ -222,6 +224,7 @@ public class Client {
 						// Send error code 04 and stop transfer
 						ErrorPacket ep = new ErrorPacket((byte)4, "DATA block number not in sequence or duplicate.");
 						sendAndReceiveSocket.send(new DatagramPacket(ep.encode(), ep.encode().length, InetAddress.getLocalHost(), receivePacket.getPort()));
+						out.close();
 						return;
 					}
 				}
@@ -371,12 +374,14 @@ public class Client {
 				System.err.println("Was expecting an ACK, got unknown opcode instead");
 				ErrorPacket ep = new ErrorPacket((byte)4, "Was expecting a ACK packet.");
 				sendAndReceiveSocket.send(new DatagramPacket(ep.encode(), ep.encode().length, InetAddress.getLocalHost(), receivePacket.getPort()));
+				in.close();
 				return;
 			}
 			if (!AckPacket.isValid(receivedData)) {
 				System.err.println("ACK packet was malformed");
 				ErrorPacket ep = new ErrorPacket((byte)4, "ACK packet was malformed.");
 				sendAndReceiveSocket.send(new DatagramPacket(ep.encode(), ep.encode().length, InetAddress.getLocalHost(), receivePacket.getPort()));
+				in.close();
 				return;
 			}
 			AckPacket ap = new AckPacket(receivedData);
@@ -403,6 +408,7 @@ public class Client {
 						// Send ErrorPacket with error code 04 and stop transfer.
 						ErrorPacket ep = new ErrorPacket((byte)4, "ACK packet was not in sequence or duplicate.");
 						sendAndReceiveSocket.send(new DatagramPacket(ep.encode(), ep.encode().length, InetAddress.getLocalHost(), receivePacket.getPort()));
+						in.close();
 						return;
 					}
 				}
