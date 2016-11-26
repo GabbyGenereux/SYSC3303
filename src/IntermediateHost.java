@@ -208,7 +208,7 @@ public class IntermediateHost {
 		}
 		else{
 			mode = 4;
-			corruptSeg = m-4;
+			corruptSeg = m-3;
 		}
 		code = c;
 		newBlock = nc;
