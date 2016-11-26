@@ -441,6 +441,15 @@ public class Client {
 			}
 			
 		}
+		//receive final ACK
+		byte[] data = new byte[bufferSize];
+		receivePacket = new DatagramPacket(data, data.length);	
+		if(!packetReceiveWithTimeout(sendAndReceiveSocket, receivePacket, sendPacket))
+		{
+			in.close();
+			return;
+		}
+		TFTPInfoPrinter.printReceived(receivePacket);
 		
 		in.close();
 		System.out.println("Transfer complete");
