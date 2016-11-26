@@ -24,10 +24,9 @@ public class ServerThread extends Thread{
 	
 	public ServerThread(String name, DatagramPacket receivedPacket, byte[] receivedData){
 		super(name);
+
 		receivePacket = receivedPacket;
 		this.receivedData = receivedData;
-		RequestPacket rp = new RequestPacket(receivedData);
-		file = rp.getFilename();
 	}
 	
 	//receives a packet on the socket given with a timeout of 5 seconds, eventually gives up after a few timeouts
@@ -90,16 +89,18 @@ public class ServerThread extends Thread{
 		} catch (SocketException e1) {
 			e1.printStackTrace();
 		}
-		/*if (!RequestPacket.isValid(receivePacket.getData())){
+		if (!RequestPacket.isValid(receivePacket.getData())){
 			// Send error code 04 and stop transfer
-			ErrorPacket ep = new ErrorPacket((byte)4, "DATA block number not in sequence or duplicate.");
+			ErrorPacket ep = new ErrorPacket((byte)4, "Request was invalid.");
 			try {
 				sendReceiveSocket.send(new DatagramPacket(ep.encode(), ep.encode().length, receivePacket.getAddress(), receivePacket.getPort()));
 			} catch (IOException e) {
 				e.printStackTrace();
 			}
 			return;
-		}*/
+		}
+		RequestPacket rp = new RequestPacket(receivedData);
+		file = rp.getFilename();
 		// Determination of type of packet received
 		byte[] opcode = {receivedData[0], receivedData[1]};
 		

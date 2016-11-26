@@ -152,7 +152,7 @@ public class IntermediateHost {
 			}
 			else if(corruptSeg == 3){
 				//change end 0 byte to a value
-				data[data.length - 1] = 1;
+				data[length - 1] = 1;
 			}
 			
 			try {
