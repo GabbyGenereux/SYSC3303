@@ -122,6 +122,15 @@ public class IntermediateHost {
 		}
 		// Duplicate packet
 		else if (mode == 3) {
+			try {
+				sendAndReceiveSocket.send(sendPacket);
+				TimeUnit.MILLISECONDS.sleep(delay);
+				sendAndReceiveSocket.send(sendPacket);
+			} catch (InterruptedException ie) {
+				
+			} catch (IOException ioe) {
+				
+			}
 			
 		}
 		// Corrupt the packet
