@@ -167,7 +167,9 @@ public class Client {
 			{
 				System.err.println("Packet from unknown address or port, discarding.");
 				ErrorPacket ep = new ErrorPacket((byte)5, "Packet from unknown address or port, discarding.");
-				sendAndReceiveSocket.send(new DatagramPacket(ep.encode(), ep.encode().length, receivePacket.getAddress(), receivePacket.getPort()));
+				DatagramPacket errPkt = new DatagramPacket(ep.encode(), ep.encode().length, receivePacket.getAddress(), receivePacket.getPort());
+				sendAndReceiveSocket.send(errPkt);
+				TFTPInfoPrinter.printSent(errPkt);
 				continue;
 			}
 			TFTPInfoPrinter.printReceived(receivePacket);
@@ -378,7 +380,9 @@ public class Client {
 			{
 				System.err.println("Packet from unknown address or port, discarding.");
 				ErrorPacket ep = new ErrorPacket((byte)5, "Packet from unknown address or port, discarding.");
-				sendAndReceiveSocket.send(new DatagramPacket(ep.encode(), ep.encode().length, receivePacket.getAddress(), receivePacket.getPort()));
+				DatagramPacket errPkt = new DatagramPacket(ep.encode(), ep.encode().length, receivePacket.getAddress(), receivePacket.getPort());
+				sendAndReceiveSocket.send(errPkt);
+				TFTPInfoPrinter.printSent(errPkt);
 				continue;
 			}
 			
@@ -489,7 +493,9 @@ public class Client {
 		{
 			System.err.println("Packet from unknown address or port, discarding.");
 			ErrorPacket ep = new ErrorPacket((byte)5, "Packet from unknown address or port, discarding.");
-			sendAndReceiveSocket.send(new DatagramPacket(ep.encode(), ep.encode().length, receivePacket.getAddress(), receivePacket.getPort()));
+			DatagramPacket errPkt = new DatagramPacket(ep.encode(), ep.encode().length, receivePacket.getAddress(), receivePacket.getPort());
+			sendAndReceiveSocket.send(errPkt);
+			TFTPInfoPrinter.printSent(errPkt);
 			// Don't know what to do here.
 			// Need to still wait for final ACK...
 		}
