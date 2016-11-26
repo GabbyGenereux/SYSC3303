@@ -1,12 +1,15 @@
 import java.io.IOException;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
+import java.net.InetAddress;
 import java.net.SocketException;
 import java.net.SocketTimeoutException;
 import java.util.Scanner;
 
 public class Server {
 
+	private static final int KNOWN_PORT = 69;
+	private static InetAddress KNOWN_ADDRESS = null;
 	DatagramSocket sendSocket, receiveSocket;
 	DatagramPacket receivePacket, sendPacket;
 	boolean run = true;
@@ -17,7 +20,7 @@ public class Server {
 	public Server()
 	{
 		try{
-			receiveSocket = new DatagramSocket(69);
+			receiveSocket = new DatagramSocket(KNOWN_PORT);
 		}catch(SocketException e)
 		{
 			e.printStackTrace();
@@ -49,12 +52,14 @@ public class Server {
 		byte data[] = new byte[100];
 		byte data2[];
 		int threadCounter = 1;
+		int loopCounter = 0;
 		ServerInput waitForExitCommand = new ServerInput("Input Handler", this);
 		waitForExitCommand.start();
 		//once user input is added, the server operator can choose to shutdown
 		System.out.println("Server: Waiting for packet..");
 		while(run)
 		{
+			loopCounter++;
 			//create packet to receive
 			receivePacket = new DatagramPacket(data, data.length);
 			
@@ -71,6 +76,19 @@ public class Server {
 			{
 				e.printStackTrace();
 				System.exit(1);
+			}
+			
+			if(loopCounter == 1)
+			{
+				KNOWN_ADDRESS = receivePacket.getAddress();
+			}
+			else
+			{
+				if(receivePacket.getPort() != KNOWN_PORT || receivePacket.getAddress() != KNOWN_ADDRESS)
+				{
+					System.err.println("Unknown port or address, discarding.");
+					continue;
+				}
 			}
 			
 			data2 = new byte[receivePacket.getLength()];

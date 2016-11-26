@@ -154,6 +154,12 @@ public class Client {
 				out.close();
 				return;
 			}
+			
+			if(receivePacket.getAddress() != sendPacket.getAddress() || receivePacket.getPort() != sendPacket.getPort())
+			{
+				System.err.println("Packet from unknown address or port, discarding.");
+				continue;
+			}
 			TFTPInfoPrinter.printReceived(receivePacket);
 			
 			// validate packet
@@ -347,6 +353,13 @@ public class Client {
 				in.close();
 				return;
 			}
+			
+			if(receivePacket.getAddress() != sendPacket.getAddress() || receivePacket.getPort() != sendPacket.getPort())
+			{
+				System.err.println("Packet from unknown address or port, disregarding");
+				continue;
+				
+			}
 			TFTPInfoPrinter.printReceived(receivePacket);
 			
 			receivedData = Arrays.copyOf(receivePacket.getData(), receivePacket.getLength());
@@ -449,8 +462,15 @@ public class Client {
 			in.close();
 			return;
 		}
-		TFTPInfoPrinter.printReceived(receivePacket);
 		
+		if(receivePacket.getAddress() != sendPacket.getAddress() || receivePacket.getPort() != sendPacket.getPort())
+		{
+			System.err.println("ACK from unknown address or port, disregarding");
+			return;
+			
+		}
+		TFTPInfoPrinter.printReceived(receivePacket);
+				
 		in.close();
 		System.out.println("Transfer complete");
 	}
