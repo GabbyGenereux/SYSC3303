@@ -101,10 +101,12 @@ public class IntermediateHost {
 
 		// Drop packet
 		if (mode == 1) {
+			System.out.println("Dropping packet...");
 			// Do nothing (packet dropped)
 		}
 		// Delay packet
 		else if (mode == 2) {
+			System.out.println("Delaying packet...");
 			try {
 				TimeUnit.MILLISECONDS.sleep(delay);
 				sendAndReceiveSocket.send(sendPacket);
@@ -117,6 +119,7 @@ public class IntermediateHost {
 		}
 		// Duplicate packet
 		else if (mode == 3) {
+			System.out.println("Duplicating packet");
 			try {
 				sendAndReceiveSocket.send(sendPacket);
 				TimeUnit.MILLISECONDS.sleep(delay);
@@ -130,6 +133,7 @@ public class IntermediateHost {
 		}
 		// Corrupt the packet
 		else if (mode == 4) {
+			System.out.println("Corrupting packet");
 			//corrupt packet
 			if(corruptSeg == 1){
 				//change opcode
