@@ -77,7 +77,7 @@ public class IntermediateHost {
 			}
 			if (mode != 0 && isTargetPacket(p.getData())) {
 				
-				sendSpecially(p.getData(), addr, port);
+				sendSpecially(p.getData(), p.getLength(), addr, port);
 			}
 			else {
 				p.setPort(port);
@@ -96,8 +96,8 @@ public class IntermediateHost {
 		}
 	}
 	
-	private void sendSpecially(byte[] data, InetAddress addr, int port) {
-		DatagramPacket sendPacket = new DatagramPacket(data, data.length, addr, port);
+	private void sendSpecially(byte[] data, int length, InetAddress addr, int port) {
+		DatagramPacket sendPacket = new DatagramPacket(data, length, addr, port);
 
 		// Drop packet
 		if (mode == 1) {
@@ -162,6 +162,8 @@ public class IntermediateHost {
 		else if (mode == 5) {
 			
 		}
+		
+		mode = 0;
 	}
 	
 	public static void main(String args[]) throws InterruptedException
