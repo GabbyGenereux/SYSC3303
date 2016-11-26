@@ -46,7 +46,7 @@ public class Client {
 	}
 	//receives a packet on the socket given with a timeout of 5 seconds, eventually gives up after a few timeouts
 	//returns false if unsuccessful, true if successful
-	private boolean packetReceiveWithTimeout(DatagramSocket socket, DatagramPacket packet) throws IOException
+	private boolean packetReceiveWithTimeout(DatagramSocket socket, DatagramPacket packet, DatagramPacket resendPacket) throws IOException
 	{
 		socket.setSoTimeout(5000);		//set timeout to 5000 ms (5 seconds)
 		int numTimeouts = 0;
@@ -60,7 +60,8 @@ public class Client {
 			{
 				receivedOrSent = false;	
 				numTimeouts++;
-				System.out.println("Timed out, retrying transfer.");					
+				System.out.println("Timed out, retrying transfer.");	
+				socket.send(resendPacket);
 			}
 		}
 		if(numTimeouts >= 5)
@@ -98,7 +99,7 @@ public class Client {
 		return true;
 	}
 	
-	private void sendRequest(byte[] reqType, String filename, String mode) throws UnknownHostException {
+	private DatagramPacket sendRequest(byte[] reqType, String filename, String mode) throws UnknownHostException {
 		RequestPacket p = new RequestPacket(reqType, filename, mode);
 		byte[] message = p.encode();
 		
@@ -111,6 +112,8 @@ public class Client {
 		}
 		if(sent)
 			TFTPInfoPrinter.printSent(request);
+		
+		return request;
 	}
 	
 	public void readFromServer(String filename, String mode) throws IOException{		
@@ -139,14 +142,14 @@ public class Client {
 			}
 		}
 		
-		
-		sendRequest(RequestPacket.readOpcode, filename, mode);
+		boolean duplicateDataPacket = false; 
+		sendPacket = sendRequest(RequestPacket.readOpcode, filename, mode);
 		while (true) {
 			receivedData = new byte[bufferSize];
 			receivePacket = new DatagramPacket(receivedData, receivedData.length);
 			// receive block
 			
-			if(!packetReceiveWithTimeout(sendAndReceiveSocket, receivePacket))
+			if(!packetReceiveWithTimeout(sendAndReceiveSocket, receivePacket, sendPacket))
 			{
 				out.close();
 				return;
@@ -193,9 +196,11 @@ public class Client {
 			
 			int blockNum = dp.getBlockNum();
 			//System.out.println("Received block of data, Block#: " + currentBlockNumber);
-			boolean duplicateDataPacket = false;
+			duplicateDataPacket = false;
+			
 			if (blockNum != currentBlockNumber) {
 				
+				// TODO: make sure block number stuff works for large >32MB files
 				if (blockNum == 0) {
 					currentBlockNumber -= 65536;
 				}
@@ -207,7 +212,8 @@ public class Client {
 					{
 						//received duplicate data packet
 						duplicateDataPacket = true;
-						currentBlockNumber += 65536; // Restore block number since packet was a duplicate
+						
+						if (blockNum == 0) currentBlockNumber += 65536; // Restore block number since packet was a duplicate
 					}
 					else {
 						// BlockNumber cannot be explained by duplicate or delayed packet, so it is an error.
@@ -225,6 +231,7 @@ public class Client {
 			{
 				try{
 					out.write(dataBlock);
+					System.out.println("Writing datablock with block#: " + blockNum + " to file.");
 				}
 				catch(IOException e){ //disk full
 					String msg = "Unable to write file " +filename+", disk space full";
@@ -258,7 +265,7 @@ public class Client {
 				return;
 			}
 			TFTPInfoPrinter.printSent(sendPacket);
-			currentBlockNumber++;
+			if (!duplicateDataPacket) currentBlockNumber++;
 			
 			// check if block is < 512 bytes which signifies end of file
 			if (dataBlock.length < 512) { 
@@ -323,13 +330,14 @@ public class Client {
 			return;
 		}
 		
-		sendRequest(RequestPacket.writeOpcode, filename, mode);
-		
+		sendPacket = sendRequest(RequestPacket.writeOpcode, filename, mode);
+		boolean duplicateACKPacket = false;
+		int bytesRead = 0;
 		while (true) {
 			// receive ACK from previous dataBlock
 			byte[] data = new byte[bufferSize];
 			receivePacket = new DatagramPacket(data, data.length);	
-			if(!packetReceiveWithTimeout(sendAndReceiveSocket, receivePacket))
+			if(!packetReceiveWithTimeout(sendAndReceiveSocket, receivePacket, sendPacket))
 			{
 				in.close();
 				return;
@@ -371,7 +379,7 @@ public class Client {
 			// need block number
 			int blockNum = ap.getBlockNum();
 			
-			boolean duplicateDataPacket = false;
+			duplicateACKPacket = false;
 			if (blockNum != currentBlockNumber) {
 				
 				if (blockNum == 0) {
@@ -384,8 +392,8 @@ public class Client {
 					if(currentBlockNumber > blockNum)
 					{
 						//received duplicate data packet
-						duplicateDataPacket = true;
-						currentBlockNumber += 65536; // Restore block number since packet was a duplicate
+						duplicateACKPacket = true;
+						//currentBlockNumber += 65536; // Restore block number since packet was a duplicate
 					}
 					else {
 						// Send ErrorPacket with error code 04 and stop transfer.
@@ -396,28 +404,32 @@ public class Client {
 				}
 			}
 			
-			// increment block number then send that block
-			currentBlockNumber++;
-			
-			byte[] dataBlock = new byte[blockSize];
-			
-			// Resize dataBlock to total bytes read
-			int bytesRead = in.read(dataBlock);
-			if (bytesRead == -1) bytesRead = 0;
-			dataBlock = Arrays.copyOf(dataBlock, bytesRead);
-			
-			DataPacket dp = new DataPacket(currentBlockNumber, dataBlock);
-			byte[] sendData = dp.encode();
-			// Initial request was sent to wellKnownPort, but steady state file transfer should happen on another port.
-			sendPacket = new DatagramPacket(sendData, sendData.length, InetAddress.getLocalHost(), receivePacket.getPort());
-			if(!packetSendWithTimeout(sendAndReceiveSocket, sendPacket))
-			{
-				in.close();
-				return;
+			// Just ignore the duplicate ACK
+			if (!duplicateACKPacket) {
+				// increment block number then send that block
+				currentBlockNumber++;
+				
+				byte[] dataBlock = new byte[blockSize];
+				
+				// Resize dataBlock to total bytes read
+				bytesRead = in.read(dataBlock);
+				if (bytesRead == -1) bytesRead = 0;
+				dataBlock = Arrays.copyOf(dataBlock, bytesRead);
+				
+				DataPacket dp = new DataPacket(currentBlockNumber, dataBlock);
+				byte[] sendData = dp.encode();
+				// Initial request was sent to wellKnownPort, but steady state file transfer should happen on another port.
+				sendPacket = new DatagramPacket(sendData, sendData.length, InetAddress.getLocalHost(), receivePacket.getPort());
+				if(!packetSendWithTimeout(sendAndReceiveSocket, sendPacket))
+				{
+					in.close();
+					return;
+				}
+				TFTPInfoPrinter.printSent(sendPacket);
+				
+				if (bytesRead < 512) break;
 			}
-			TFTPInfoPrinter.printSent(sendPacket);
 			
-			if (bytesRead < 512) break;
 		}
 		
 		in.close();

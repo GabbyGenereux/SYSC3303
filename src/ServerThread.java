@@ -32,7 +32,7 @@ public class ServerThread extends Thread{
 	
 	//receives a packet on the socket given with a timeout of 5 seconds, eventually gives up after a few timeouts
 	//returns false if unsuccessful, true if successful
-	private boolean packetReceiveWithTimeout(DatagramSocket socket, DatagramPacket packet) throws IOException
+	private boolean packetReceiveWithTimeout(DatagramSocket socket, DatagramPacket packet, DatagramPacket resendPacket) throws IOException
 	{
 		socket.setSoTimeout(5000);		//set timeout to 5000 ms (5 seconds)
 		int numTimeouts = 0;
@@ -46,7 +46,8 @@ public class ServerThread extends Thread{
 			{
 				receivedOrSent = false;	
 				numTimeouts++;
-				System.out.print("Timed out, retrying transfer.");					
+				System.out.print("Timed out, retrying transfer.");
+				socket.send(resendPacket);
 			}
 		}
 		if(numTimeouts >= 5)
@@ -204,37 +205,44 @@ public class ServerThread extends Thread{
 		} 
 		
 			
-		
+		boolean duplicateACKPacket = false;
+		int bytesRead = 0;
 		while(true)
 		{
 			byte[] dataBlock = new byte[blockSize];
 
-			int bytesRead = 0;
-			try {
-				bytesRead = in.read(dataBlock);
-			} catch (IOException e) {
+			
+			
+			// Don't send anything if the ACK previous ACK packet obtained was a duplicate.
+			if (!duplicateACKPacket) {
+				try {
+					bytesRead = in.read(dataBlock);
+				} catch (IOException e) {
+					
+				}
 				
+				if (bytesRead == -1) bytesRead = 0; 
+				dataBlock = Arrays.copyOf(dataBlock, bytesRead);
+				
+				DataPacket dp = new DataPacket(currentBlockNumber, dataBlock);
+				data = dp.encode();
+				
+				//send the data to the client
+				sendPacket = new DatagramPacket(data, data.length, receivePacket.getAddress(), receivePacket.getPort());
+				if(!packetSendWithTimeout(sendReceiveSocket, sendPacket))
+				{
+					in.close();
+					return;
+				}
+				TFTPInfoPrinter.printSent(sendPacket);
 			}
 			
-			if (bytesRead == -1) bytesRead = 0; 
-			dataBlock = Arrays.copyOf(dataBlock, bytesRead);
 			
-			DataPacket dp = new DataPacket(currentBlockNumber, dataBlock);
-			data = dp.encode();
-			
-			//send the data to the client
-			sendPacket = new DatagramPacket(data, data.length, receivePacket.getAddress(), receivePacket.getPort());
-			if(!packetSendWithTimeout(sendReceiveSocket, sendPacket))
-			{
-				in.close();
-				return;
-			}
-			TFTPInfoPrinter.printSent(sendPacket);
 			
 			//receive the ACK from the client
 			byte[] ack = new byte[bufferSize];
 			receivePacket = new DatagramPacket(ack, ack.length);
-			if(!packetReceiveWithTimeout(sendReceiveSocket, receivePacket))
+			if(!packetReceiveWithTimeout(sendReceiveSocket, receivePacket, sendPacket))
 			{
 				in.close();
 				return;
@@ -261,6 +269,7 @@ public class ServerThread extends Thread{
 				return;
 			}
 			byte[] dataReceived = Arrays.copyOf(receivePacket.getData(), receivePacket.getLength());
+
 			
 			if (!AckPacket.isValid(dataReceived)) {
 				// Send ErrorPacket with error code 04 and stop transfer.
@@ -272,8 +281,11 @@ public class ServerThread extends Thread{
 			
 			int blockNum = ap.getBlockNum();
 			
+			duplicateACKPacket = false; // Set to false, so next loop will continue transferring properly if next ACK isn't also duplicate.
 			
-			boolean duplicateDataPacket = false;
+			System.out.println("Current Block Number: " + currentBlockNumber);
+			System.out.println("Received Block Number: " + blockNum);
+			
 			if (blockNum != currentBlockNumber) {
 				
 				if (blockNum < 0) {
@@ -286,7 +298,7 @@ public class ServerThread extends Thread{
 					if(currentBlockNumber > blockNum)
 					{
 						//received duplicate data packet
-						duplicateDataPacket = true;
+						duplicateACKPacket = true;
 					}
 					else {
 						// Send ErrorPacket with error code 04 and stop transfer.
@@ -299,12 +311,14 @@ public class ServerThread extends Thread{
 			
 			if (bytesRead < 512) break;
 			//get ready to send the next block of bytes
-			currentBlockNumber++;
+			
+			if (!duplicateACKPacket) currentBlockNumber++;
+			
 		}
 		//receive the last ACK
 		byte[] ack = new byte[bufferSize];
 		receivePacket = new DatagramPacket(ack, ack.length);
-		if(!packetReceiveWithTimeout(sendReceiveSocket, receivePacket))
+		if(!packetReceiveWithTimeout(sendReceiveSocket, receivePacket, sendPacket))
 		{
 			in.close();
 			return;
@@ -353,6 +367,7 @@ public class ServerThread extends Thread{
 			}
 		}
 		
+		boolean duplicateDataPacket = false;
 		while (true) {
 			// Send ack back
 			AckPacket ap = new AckPacket(currentBlockNumber);
@@ -366,12 +381,12 @@ public class ServerThread extends Thread{
 				return;
 			}
 			TFTPInfoPrinter.printSent(sendPacket);
-			currentBlockNumber++;
+			if (!duplicateDataPacket) currentBlockNumber++;
 			
 			receivedData = new byte[bufferSize];
 			receivePacket = new DatagramPacket(receivedData, receivedData.length);
 			// receive block
-			if(!packetReceiveWithTimeout(sendReceiveSocket, receivePacket))
+			if(!packetReceiveWithTimeout(sendReceiveSocket, receivePacket, sendPacket))
 			{
 				out.close();
 				return;
@@ -409,7 +424,7 @@ public class ServerThread extends Thread{
 			DataPacket dp = new DataPacket(receivedData);
 			int blockNum = dp.getBlockNum();
 
-			boolean duplicateDataReceived = false;
+			duplicateDataPacket = false;
 			if (blockNum != currentBlockNumber) {
 				
 				if (blockNum == 0) {
@@ -422,8 +437,8 @@ public class ServerThread extends Thread{
 					if(currentBlockNumber > blockNum)
 					{
 						//received duplicate data packet
-						duplicateDataReceived = true;
-						currentBlockNumber += 65536; // Restore block number since packet was a duplicate
+						duplicateDataPacket = true;
+						//currentBlockNumber += 65536; // Restore block number since packet was a duplicate
 					}
 					else {
 						// Send ErrorPacket with error code 04 and stop transfer.
@@ -437,7 +452,7 @@ public class ServerThread extends Thread{
 			byte[] dataBlock = dp.getDataBlock();
 			
 			// Write dataBlock to file
-			if(!duplicateDataReceived)
+			if(!duplicateDataPacket)
 				{
 				try {
 					out.write(dataBlock);
