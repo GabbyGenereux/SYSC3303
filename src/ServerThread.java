@@ -319,15 +319,6 @@ public class ServerThread extends Thread{
 			if (!duplicateACKPacket) currentBlockNumber++;
 			
 		}
-		//receive the last ACK
-		byte[] ack = new byte[bufferSize];
-		receivePacket = new DatagramPacket(ack, ack.length);
-		if(!packetReceiveWithTimeout(sendReceiveSocket, receivePacket, sendPacket))
-		{
-			in.close();
-			return;
-		}
-		TFTPInfoPrinter.printReceived(receivePacket);
 		in.close();
 		System.out.println("Transfer complete");
 	}
