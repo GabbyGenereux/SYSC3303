@@ -477,11 +477,11 @@ public class Client {
 			return;
 		}
 		
-		if(receivePacket.getAddress() != sendPacket.getAddress() || receivePacket.getPort() != sendPacket.getPort())
+		if(!receivePacket.getAddress().equals(serverAddress) || receivePacket.getPort() != serverPort)
 		{
-			System.err.println("ACK from unknown address or port, disregarding");
-			return;
-			
+			System.err.println("Packet from unknown address or port, discarding.");
+			// Don't know what to do here.
+			// Need to still wait for final ACK...
 		}
 		TFTPInfoPrinter.printReceived(receivePacket);
 				
