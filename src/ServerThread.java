@@ -45,13 +45,13 @@ public class ServerThread extends Thread{
 			{
 				receivedOrSent = false;	
 				numTimeouts++;
-				System.out.print("Timed out, retrying transfer.");
+				System.out.println("Timed out, retrying transfer.");
 				socket.send(resendPacket);
 			}
 		}
 		if(numTimeouts >= 5)
 		{
-			System.out.print("Transfer failed, timed out too many times.");
+			System.out.println("Transfer failed, timed out too many times.");
 			return false;
 		}
 		return true;
@@ -89,11 +89,15 @@ public class ServerThread extends Thread{
 		} catch (SocketException e1) {
 			e1.printStackTrace();
 		}
-		if (!RequestPacket.isValid(receivePacket.getData())){
+		byte[] data = Arrays.copyOf(receivePacket.getData(), receivePacket.getLength());
+		if (!RequestPacket.isValid(data)){
 			// Send error code 04 and stop transfer
+			System.err.println("Request was invalid.");
 			ErrorPacket ep = new ErrorPacket((byte)4, "Request was invalid.");
 			try {
-				sendReceiveSocket.send(new DatagramPacket(ep.encode(), ep.encode().length, receivePacket.getAddress(), receivePacket.getPort()));
+				DatagramPacket errP = new DatagramPacket(ep.encode(), ep.encode().length, receivePacket.getAddress(), receivePacket.getPort());
+				sendReceiveSocket.send(errP);
+				TFTPInfoPrinter.printSent(errP);
 			} catch (IOException e) {
 				e.printStackTrace();
 			}
@@ -319,15 +323,6 @@ public class ServerThread extends Thread{
 			if (!duplicateACKPacket) currentBlockNumber++;
 			
 		}
-		//receive the last ACK
-		byte[] ack = new byte[bufferSize];
-		receivePacket = new DatagramPacket(ack, ack.length);
-		if(!packetReceiveWithTimeout(sendReceiveSocket, receivePacket, sendPacket))
-		{
-			in.close();
-			return;
-		}
-		TFTPInfoPrinter.printReceived(receivePacket);
 		in.close();
 		System.out.println("Transfer complete");
 	}
