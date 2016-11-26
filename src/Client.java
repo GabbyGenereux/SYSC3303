@@ -119,6 +119,8 @@ public class Client {
 	public void readFromServer(String filename, String mode) throws IOException{		
 		System.out.println("Initiating read request with file " + filename);
 		
+		InetAddress serverAddress = null;
+		int serverPort = -1;
 		
 		byte[] receivedData;
 		byte[] receivedOpcode;
@@ -155,7 +157,13 @@ public class Client {
 				return;
 			}
 			
-			if(receivePacket.getAddress() != sendPacket.getAddress() || receivePacket.getPort() != sendPacket.getPort())
+			// Initial transfer, setup address to check for in future packets.
+			if (serverAddress == null && serverPort == -1) {
+				serverAddress = receivePacket.getAddress();
+				serverPort = receivePacket.getPort();
+			}
+			
+			if(!receivePacket.getAddress().equals(serverAddress) || receivePacket.getPort() != serverPort)
 			{
 				System.err.println("Packet from unknown address or port, discarding.");
 				continue;
@@ -295,7 +303,8 @@ public class Client {
 		BufferedInputStream in = null;
 		byte[] receivedData;
 		byte[] receivedOpcode;
-		
+		InetAddress serverAddress = null;
+		int serverPort = -1;
 		
 		
 		try {
@@ -354,11 +363,16 @@ public class Client {
 				return;
 			}
 			
-			if(receivePacket.getAddress() != sendPacket.getAddress() || receivePacket.getPort() != sendPacket.getPort())
+			// Initial transfer, setup address to check for in future packets.
+			if (serverAddress == null && serverPort == -1) {
+				serverAddress = receivePacket.getAddress();
+				serverPort = receivePacket.getPort();
+			}
+						
+			if(!receivePacket.getAddress().equals(serverAddress) || receivePacket.getPort() != serverPort)
 			{
-				System.err.println("Packet from unknown address or port, disregarding");
+				System.err.println("Packet from unknown address or port, discarding.");
 				continue;
-				
 			}
 			TFTPInfoPrinter.printReceived(receivePacket);
 			
