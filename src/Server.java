@@ -9,7 +9,7 @@ import java.util.Scanner;
 public class Server {
 
 	private static final int KNOWN_PORT = 69;
-	private static InetAddress KNOWN_ADDRESS = null;
+	//private static InetAddress KNOWN_ADDRESS = null;
 	DatagramSocket sendSocket, receiveSocket;
 	DatagramPacket receivePacket, sendPacket;
 	boolean run = true;
@@ -76,19 +76,6 @@ public class Server {
 			{
 				e.printStackTrace();
 				System.exit(1);
-			}
-			
-			if(loopCounter == 1)
-			{
-				KNOWN_ADDRESS = receivePacket.getAddress();
-			}
-			else
-			{
-				if(receivePacket.getPort() != KNOWN_PORT || receivePacket.getAddress() != KNOWN_ADDRESS)
-				{
-					System.err.println("Unknown port or address, discarding.");
-					continue;
-				}
 			}
 			
 			data2 = new byte[receivePacket.getLength()];
