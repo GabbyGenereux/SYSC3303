@@ -17,9 +17,9 @@ public class RequestPacket {
 	
 	public static boolean isValid(byte[] data) {
 		byte[] opcode = {data[0], data[1]};
-		if (!opcode.equals(readOpcode) || !opcode.equals(writeOpcode)) return false;
+		if (!(Arrays.equals(opcode, readOpcode) || Arrays.equals(opcode, writeOpcode))) return false;
 		
-		int i, j;
+		int i;
 		try {
 			for (i = 2; data[i] != 0; i++) {
 				; // Empty loop
@@ -31,7 +31,7 @@ public class RequestPacket {
 		if (i == 2) return false; // Filename must be have characters.
 		
 		try {
-			for (j = ++i; data[i] != 0; i++) {
+			for (i++; data[i] != 0; i++) {
 				
 			}
 		} catch (ArrayIndexOutOfBoundsException e) {
