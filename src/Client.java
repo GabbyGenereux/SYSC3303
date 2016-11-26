@@ -142,7 +142,7 @@ public class Client {
 			}
 		}
 		
-		
+		boolean duplicateDataPacket = false; 
 		sendPacket = sendRequest(RequestPacket.readOpcode, filename, mode);
 		while (true) {
 			receivedData = new byte[bufferSize];
@@ -196,9 +196,11 @@ public class Client {
 			
 			int blockNum = dp.getBlockNum();
 			//System.out.println("Received block of data, Block#: " + currentBlockNumber);
-			boolean duplicateDataPacket = false;
+			duplicateDataPacket = false;
+			
 			if (blockNum != currentBlockNumber) {
 				
+				// TODO: make sure block number stuff works for large >32MB files
 				if (blockNum == 0) {
 					currentBlockNumber -= 65536;
 				}
@@ -210,7 +212,8 @@ public class Client {
 					{
 						//received duplicate data packet
 						duplicateDataPacket = true;
-						currentBlockNumber += 65536; // Restore block number since packet was a duplicate
+						
+						if (blockNum == 0) currentBlockNumber += 65536; // Restore block number since packet was a duplicate
 					}
 					else {
 						// BlockNumber cannot be explained by duplicate or delayed packet, so it is an error.
@@ -228,6 +231,7 @@ public class Client {
 			{
 				try{
 					out.write(dataBlock);
+					System.out.println("Writing datablock with block#: " + blockNum + " to file.");
 				}
 				catch(IOException e){ //disk full
 					String msg = "Unable to write file " +filename+", disk space full";
@@ -261,7 +265,7 @@ public class Client {
 				return;
 			}
 			TFTPInfoPrinter.printSent(sendPacket);
-			currentBlockNumber++;
+			if (!duplicateDataPacket) currentBlockNumber++;
 			
 			// check if block is < 512 bytes which signifies end of file
 			if (dataBlock.length < 512) { 
@@ -328,7 +332,7 @@ public class Client {
 		
 		sendPacket = sendRequest(RequestPacket.writeOpcode, filename, mode);
 		boolean duplicateACKPacket = false;
-		
+		int bytesRead = 0;
 		while (true) {
 			// receive ACK from previous dataBlock
 			byte[] data = new byte[bufferSize];
@@ -389,7 +393,7 @@ public class Client {
 					{
 						//received duplicate data packet
 						duplicateACKPacket = true;
-						currentBlockNumber += 65536; // Restore block number since packet was a duplicate
+						//currentBlockNumber += 65536; // Restore block number since packet was a duplicate
 					}
 					else {
 						// Send ErrorPacket with error code 04 and stop transfer.
@@ -408,7 +412,7 @@ public class Client {
 				byte[] dataBlock = new byte[blockSize];
 				
 				// Resize dataBlock to total bytes read
-				int bytesRead = in.read(dataBlock);
+				bytesRead = in.read(dataBlock);
 				if (bytesRead == -1) bytesRead = 0;
 				dataBlock = Arrays.copyOf(dataBlock, bytesRead);
 				

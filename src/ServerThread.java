@@ -193,11 +193,12 @@ public class ServerThread extends Thread{
 		
 			
 		boolean duplicateACKPacket = false;
+		int bytesRead = 0;
 		while(true)
 		{
 			byte[] dataBlock = new byte[blockSize];
 
-			int bytesRead = 0;
+			
 			
 			// Don't send anything if the ACK previous ACK packet obtained was a duplicate.
 			if (!duplicateACKPacket) {
@@ -270,6 +271,10 @@ public class ServerThread extends Thread{
 			int blockNum = ap.getBlockNum();
 			
 			duplicateACKPacket = false; // Set to false, so next loop will continue transferring properly if next ACK isn't also duplicate.
+			
+			System.out.println("Current Block Number: " + currentBlockNumber);
+			System.out.println("Received Block Number: " + blockNum);
+			
 			if (blockNum != currentBlockNumber) {
 				
 				if (blockNum < 0) {
@@ -297,6 +302,7 @@ public class ServerThread extends Thread{
 			//get ready to send the next block of bytes
 			
 			if (!duplicateACKPacket) currentBlockNumber++;
+			
 		}
 		in.close();
 		System.out.println("Transfer complete");
@@ -341,6 +347,7 @@ public class ServerThread extends Thread{
 			}
 		}
 		
+		boolean duplicateDataPacket = false;
 		while (true) {
 			// Send ack back
 			AckPacket ap = new AckPacket(currentBlockNumber);
@@ -354,7 +361,7 @@ public class ServerThread extends Thread{
 				return;
 			}
 			TFTPInfoPrinter.printSent(sendPacket);
-			currentBlockNumber++;
+			if (!duplicateDataPacket) currentBlockNumber++;
 			
 			receivedData = new byte[bufferSize];
 			receivePacket = new DatagramPacket(receivedData, receivedData.length);
@@ -397,7 +404,7 @@ public class ServerThread extends Thread{
 			DataPacket dp = new DataPacket(receivedData);
 			int blockNum = dp.getBlockNum();
 
-			boolean duplicateDataReceived = false;
+			duplicateDataPacket = false;
 			if (blockNum != currentBlockNumber) {
 				
 				if (blockNum == 0) {
@@ -410,8 +417,8 @@ public class ServerThread extends Thread{
 					if(currentBlockNumber > blockNum)
 					{
 						//received duplicate data packet
-						duplicateDataReceived = true;
-						currentBlockNumber += 65536; // Restore block number since packet was a duplicate
+						duplicateDataPacket = true;
+						//currentBlockNumber += 65536; // Restore block number since packet was a duplicate
 					}
 					else {
 						// Send ErrorPacket with error code 04 and stop transfer.
@@ -425,7 +432,7 @@ public class ServerThread extends Thread{
 			byte[] dataBlock = dp.getDataBlock();
 			
 			// Write dataBlock to file
-			if(!duplicateDataReceived)
+			if(!duplicateDataPacket)
 				{
 				try {
 					out.write(dataBlock);
