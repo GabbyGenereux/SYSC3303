@@ -166,6 +166,7 @@ public class IntermediateHost {
 		}
 		// send from different socket
 		else if (mode == 5) {
+			System.out.println("Sending from a different port: " + sendAndReceiveSocketAlt.getLocalPort());
 			try {
 				sendAndReceiveSocketAlt.send(sendPacket);
 			} catch (IOException e) {

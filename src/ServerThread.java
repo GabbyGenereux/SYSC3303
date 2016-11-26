@@ -250,18 +250,23 @@ public class ServerThread extends Thread{
 				in.close();
 				return;
 			}
+			
+			TFTPInfoPrinter.printReceived(receivePacket);		
+			
 			// Initial transfer, setup address to check for in future packets.
 			if (clientAddress == null && clientPort == -1) {
 				clientAddress = receivePacket.getAddress();
 				clientPort = receivePacket.getPort();
 			}
-						
+				
 			if(!receivePacket.getAddress().equals(clientAddress) || receivePacket.getPort() != clientPort)
 			{
 				System.err.println("Packet from unknown address or port, discarding.");
+				// reuse duplicate packet logic to prevent reading from file again.
+				duplicateACKPacket = true;
 				continue;
 			}
-			TFTPInfoPrinter.printReceived(receivePacket);
+			
 			
 			opcode = Arrays.copyOf(receivePacket.getData(), 2);
 
@@ -402,6 +407,9 @@ public class ServerThread extends Thread{
 				out.close();
 				return;
 			}
+			
+			TFTPInfoPrinter.printReceived(receivePacket);
+			
 			// Initial transfer, setup address to check for in future packets.
 			if (clientAddress == null && clientPort == -1) {
 				clientAddress = receivePacket.getAddress();
@@ -411,9 +419,11 @@ public class ServerThread extends Thread{
 			if(!receivePacket.getAddress().equals(clientAddress) || receivePacket.getPort() != clientPort)
 			{
 				System.err.println("Packet from unknown address or port, discarding.");
+				// Reuse duplicate packet logic to prevent incrementing block number.
+				duplicateDataPacket = true;
 				continue;
 			}
-			TFTPInfoPrinter.printReceived(receivePacket);
+			
 			
 			// validate packet
 			receivedData = Arrays.copyOf(receivePacket.getData(), receivePacket.getLength());
