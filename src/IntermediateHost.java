@@ -10,7 +10,7 @@ import java.util.concurrent.TimeUnit;
 
 public class IntermediateHost {
 	
-	DatagramSocket receiveSocket, sendAndReceiveSocket;
+	DatagramSocket receiveSocket, sendAndReceiveSocket, sendAndReceiveSocketAlt;
 	DatagramPacket receivePacket, sendPacket;
 	private int mode = 0;
 	private int corruptSeg = 0;
@@ -28,6 +28,7 @@ public class IntermediateHost {
 		try{
 			receiveSocket = new DatagramSocket(23);
 			sendAndReceiveSocket = new DatagramSocket();
+			sendAndReceiveSocketAlt = new DatagramSocket(50);
 		}catch(SocketException e)
 		{
 			e.printStackTrace();
@@ -65,6 +66,7 @@ public class IntermediateHost {
 				isTarget = checkData(data2);
 				if(isTarget && mode == 1){
 					mode = 0;
+					isDrop = true;
 					System.out.println("Packet Dropped");
 				}
 				else{
@@ -93,35 +95,13 @@ public class IntermediateHost {
 					//change end 0 byte to a value
 					data2[data2.length - 1] = 1;
 				}
-
-				else if(corruptSeg == 4){
-					//change mode
-					byte[] reqType = {data2[0], data2[1]};
-					filename = "";
-					for(int i = 2; data2[i] != 0; i++){
-						filename += data2[i];
-					}
-					RequestPacket p = new RequestPacket(reqType, filename, modeStr);
-					data2 = p.encode();
-				}
 			}
-			InetAddress addr = null;
 			try {
-				addr = InetAddress.getLocalHost();
-			} catch (UnknownHostException e2) {
+				sendPacket = new DatagramPacket(data2, data2.length, InetAddress.getLocalHost(), serverPort);
+			} catch (UnknownHostException e1) {
 				// TODO Auto-generated catch block
-				e2.printStackTrace();
+				e1.printStackTrace();
 			}
-			if(isTarget && mode == 5){
-				try {
-					addr = InetAddress.getByName("192.168.1.1");
-				} catch (UnknownHostException e) {
-					// TODO Auto-generated catch block
-					e.printStackTrace();
-				}
-			}
-			
-			sendPacket = new DatagramPacket(data2, data2.length, addr, serverPort);
 			try{
 				if(isTarget && mode == 2){
 					TimeUnit.MILLISECONDS.sleep(delay);
@@ -131,6 +111,9 @@ public class IntermediateHost {
 					sendAndReceiveSocket.send(sendPacket);
 					TimeUnit.MILLISECONDS.sleep(delay);
 					sendAndReceiveSocket.send(sendPacket);
+				}
+				else if(isTarget && mode == 5){
+					sendAndReceiveSocketAlt.send(sendPacket);
 				}
 				else if(!(isTarget && mode == 1)){
 					sendAndReceiveSocket.send(sendPacket);
@@ -163,6 +146,7 @@ public class IntermediateHost {
 				isTarget = checkData(receivePacket.getData());
 				if(isTarget && mode == 1){
 					mode = 0;
+					isDrop = true;
 					System.out.println("Packet Dropped");
 				}
 				else{
@@ -190,33 +174,12 @@ public class IntermediateHost {
 					//change end 0 byte to a value
 					data2[data2.length - 1] = 1;
 				}
-
-				else if(corruptSeg == 4){
-					//change mode
-					byte[] reqType = {data2[0], data2[1]};
-					filename = "";
-					for(int i = 2; data2[i] != 0; i++){
-						filename += data2[i];
-					}
-					RequestPacket p = new RequestPacket(reqType, filename, modeStr);
-					data2 = p.encode();
-				}
 			}
 			
 			// Send to Client
 			sendPacket.setData(data2);
 			sendPacket.setLength(receivePacket.getLength());
 			sendPacket.setPort(clientPort);
-			
-			addr = clientAddress;
-			if(isTarget && mode == 5){
-				try {
-					addr = InetAddress.getByName("192.168.1.1");
-				} catch (UnknownHostException e) {
-					// TODO Auto-generated catch block
-					e.printStackTrace();
-				}
-			}
 			sendPacket.setAddress(clientAddress);
 			try{
 				if(isTarget && mode == 2){
@@ -227,6 +190,9 @@ public class IntermediateHost {
 					receiveSocket.send(sendPacket);
 					TimeUnit.MILLISECONDS.sleep(delay);
 					receiveSocket.send(sendPacket);
+				}
+				else if(isTarget && mode == 5){
+					sendAndReceiveSocketAlt.send(sendPacket);
 				}
 				else if(!(isTarget && mode == 1)){
 					receiveSocket.send(sendPacket);
@@ -271,21 +237,15 @@ public class IntermediateHost {
 		if(m < 4){
 			mode = m;
 		}
+		else if(m == 7){
+			mode = 5;
+		}
 		else{
 			mode = 4;
 			corruptSeg = m-4;
 		}
 		code = c;
-		if(mode == 7){
-			modeStr = "";
-			for(int k = 0; k < nc.length; k++)
-			{
-				modeStr += nc[k];
-			}
-		}
-		else{
-			newBlock = nc;
-		}
+		newBlock = nc;
 		delay = d;
 		System.out.print("Mode set to " + m + " for packet [ ");
 		for(int i = 0; i < c.length; i++){
