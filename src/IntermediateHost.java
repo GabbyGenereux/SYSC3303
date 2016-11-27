@@ -180,7 +180,7 @@ public class IntermediateHost {
 			}
 		}
 		TFTPInfoPrinter.printSent(sendPacket);
-		mode = 0;
+		if (mode != -1) mode = 0;
 	}
 	
 	public static void main(String args[]) throws InterruptedException
