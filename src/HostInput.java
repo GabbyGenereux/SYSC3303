@@ -23,7 +23,11 @@ public class HostInput extends Thread
 			byte[] code = {};
 			byte[] newCode = {};
 			int delay = -1;
-			if(mode != 0){
+			
+			if (mode == -1) {
+				// leave default values.
+			}
+			else if(mode != 0){
 				String type = getPacketType();
 				byte[] num = null;
 				byte[] newByte = null;
@@ -50,12 +54,23 @@ public class HostInput extends Thread
 		//s.close();
 	}
 	
+	/**
+	 * 
+	 * @return
+	 * Mode number based on input. -1 if reset is selected.
+	 */
 	private int getModeNumber(){
 		int mode = -1;
 		System.out.println("Enter Error Simulator mode:");
-		System.out.println("\t0 : normal operation\n\t1 : lose a packet\n\t2 : delay a packet\n\t3 : duplicate a packet\n\t4 : change packet opcode\n\t5 : change packet block number\n\t6 : replace a zero byte\n\t7 : change port during transfer");
+		System.out.println("\t0 : normal operation\n\t1 : lose a packet\n\t2 : delay a packet\n\t3 : duplicate a packet\n\t4 : change packet opcode\n\t5 : change packet block number\n\t6 : replace a zero byte\n\t7 : change port during transfer\n\tr : reset for next transfer");
 		do{
 			String m = s.nextLine();
+			
+			// Reset
+			if (m.equals("r"))
+			{
+				return -1;
+			}
 			try{
 				mode = Integer.parseInt(m);
 				if(mode < 0 || mode > 7){

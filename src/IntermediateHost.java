@@ -3,8 +3,7 @@ import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
 import java.net.SocketException;
-import java.net.UnknownHostException;
-import java.util.Arrays;
+import java.net.SocketTimeoutException;
 import java.util.Scanner;
 import java.util.concurrent.TimeUnit;
 
@@ -16,8 +15,6 @@ public class IntermediateHost {
 	private byte[] code = new byte[2];
 	private int delay = 0;
 	private byte[] newBlock = {0,0};
-	private String modeStr = "";
-	private String filename = "";
 	
 	private final int serverWellKnownPort = 69;
 	private final int hostWellKnownPort = 23;
@@ -27,6 +24,7 @@ public class IntermediateHost {
 		try{
 			receiveSocket = new DatagramSocket(23);
 			sendAndReceiveSocket = new DatagramSocket();
+			sendAndReceiveSocket.setSoTimeout(5000);
 			sendAndReceiveSocketAlt = new DatagramSocket(50);
 		}catch(SocketException e)
 		{
@@ -42,21 +40,7 @@ public class IntermediateHost {
 		errorModeCommand.start();
 		
 		byte[] data = new byte[516];
-		byte[] tmpData;
 		
-		// IH 2 logic
-		// REPEAT:
-		//  Receive
-		//  Check if from client
-		//   Check if target packet
-		//    Send specially to server
-		//   else
-		//    send normally to server
-		//  else ( from server )
-		//   Check if target packet
-		//    send specially to client
-		//   else
-		//    send normally to client
 		
 		DatagramPacket p = new DatagramPacket(data, data.length);
 		receiveSocket.receive(p);
@@ -67,7 +51,7 @@ public class IntermediateHost {
 		while (true) {
 			InetAddress addr = InetAddress.getLocalHost();
 			int port = -1;
-			
+			if (mode == -1) break;
 			// from client
 			if (p.getPort() == clientPort) {
 				port = serverPort;
@@ -87,14 +71,30 @@ public class IntermediateHost {
 			}
 			
 			p = new DatagramPacket(data, data.length);
-			sendAndReceiveSocket.receive(p);
+			while (mode != -1) {
+				try {
+					sendAndReceiveSocket.receive(p);
+					break;
+				} catch (SocketTimeoutException e) {
+					
+				}
+			}
+			// Get out of loop as trasnfer has been marked as finished.
+			if (mode == -1) {
+				break;
+			}
+			
 			
 			// On the first transfer, the server port will still be the well known port.
 			// If this is the cause, change it to the port for steady state transfer.
 			if (serverPort == serverWellKnownPort) serverPort = p.getPort();
 			
+			
 			TFTPInfoPrinter.printReceived(p);
 		}
+	}
+	public void resetForNextTransfer() {
+		mode = 0;
 	}
 	
 	private void sendSpecially(byte[] data, int length, InetAddress addr, int port) {
@@ -194,13 +194,18 @@ public class IntermediateHost {
 		//	Thread.sleep(100);
 		//}catch(InterruptedException e){}
 		try {
-			host.receiveAndSend();
+			while (true) {
+				host.receiveAndSend();
+				host.resetForNextTransfer();
+			}
+			
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
 	}
-	
+
 	public void setMode(int m, byte[] c, byte[] nc, int d){
+		
 		if(m < 4){
 			mode = m;
 		}
