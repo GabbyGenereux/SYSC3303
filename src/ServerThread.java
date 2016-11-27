@@ -389,23 +389,25 @@ public class ServerThread extends Thread{
 				System.err.println("Unknown file error");
 			}
 		}
-		
+		boolean err5 = false;
 		boolean duplicateDataPacket = false;
 		while (true) {
-			// Send ack back
-			AckPacket ap = new AckPacket(currentBlockNumber);
-			byte[] ack = ap.encode();
-			
-			// Initial request was sent to wellKnownPort, but steady state file transfer should happen on another port.
-			sendPacket = new DatagramPacket(ack, ack.length, InetAddress.getLocalHost(), receivePacket.getPort());
-			if(!packetSendWithTimeout(sendReceiveSocket, sendPacket))
+			if(!err5)
 			{
-				out.close();
-				return;
+				// Send ack back
+				AckPacket ap = new AckPacket(currentBlockNumber);
+				byte[] ack = ap.encode();
+				
+				// Initial request was sent to wellKnownPort, but steady state file transfer should happen on another port.
+				sendPacket = new DatagramPacket(ack, ack.length, InetAddress.getLocalHost(), receivePacket.getPort());
+				if(!packetSendWithTimeout(sendReceiveSocket, sendPacket))
+				{
+					out.close();
+					return;
+				}
+				TFTPInfoPrinter.printSent(sendPacket);
+				if (!duplicateDataPacket) currentBlockNumber++;
 			}
-			TFTPInfoPrinter.printSent(sendPacket);
-			if (!duplicateDataPacket) currentBlockNumber++;
-			
 			receivedData = new byte[bufferSize];
 			receivePacket = new DatagramPacket(receivedData, receivedData.length);
 			// receive block
@@ -431,10 +433,10 @@ public class ServerThread extends Thread{
 				DatagramPacket errPkt = new DatagramPacket(ep.encode(), ep.encode().length, receivePacket.getAddress(), receivePacket.getPort());
 				sendReceiveSocket.send(errPkt);
 				TFTPInfoPrinter.printSent(errPkt);
-				duplicateDataPacket = true;
+				err5 = true;
 				continue;
 			}
-			
+			err5 = false;
 			
 			// validate packet
 			receivedData = Arrays.copyOf(receivePacket.getData(), receivePacket.getLength());
