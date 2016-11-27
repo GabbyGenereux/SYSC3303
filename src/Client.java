@@ -234,8 +234,7 @@ public class Client {
 					{
 						//received duplicate data packet
 						duplicateDataPacket = true;
-						
-						currentBlockNumber += 65536; // Restore block number since packet was a duplicate
+						if (blockNum == 0) currentBlockNumber += 65536; // Restore block number since packet was a duplicate
 					}
 					else {
 						// BlockNumber cannot be explained by duplicate or delayed packet, so it is an error.
@@ -441,7 +440,7 @@ public class Client {
 					{
 						//received duplicate data packet
 						duplicateACKPacket = true;
-						currentBlockNumber += 65536; // Restore block number since packet was a duplicate
+						if (blockNum == 0) currentBlockNumber += 65536;// Restore block number since packet was a duplicate
 					}
 					else {
 						// Send ErrorPacket with error code 04 and stop transfer.
