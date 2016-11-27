@@ -13,3 +13,17 @@ Henri: Diagrams
 Joshua: Fix issues from Iteration 1, update README, Handling error codes 1 and 2 on Server side
 Travis: Handling errors 3 and 6 on Server side
 Iain: Handing errors 3 and 6 on Client side
+
+Iteration 3:
+Gabrielle:
+Henri: Timout/resending of packets/Sourcerer's Apprentice handling
+Joshua: Diagrams
+Travis: Intermediate Host - taking input
+Iain: Intermediate Host - controlling packets based on input
+
+Iteration 3:
+Gabrielle: Error code 5 handling
+Henri: Testing
+Joshua: Error code 4 handling, fixing IntermediateHost, fixing handing of stuff that was broken in Iteration 3
+Travis: Diagrams
+Iain: Updating IntermediateHost by simulating errors 4 and 5.

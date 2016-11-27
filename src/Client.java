@@ -222,8 +222,8 @@ public class Client {
 			
 			if (blockNum != currentBlockNumber) {
 				
-				// TODO: make sure block number stuff works for large >32MB files
 				if (blockNum == 0) {
+					
 					currentBlockNumber -= 65536;
 				}
 				
@@ -235,7 +235,7 @@ public class Client {
 						//received duplicate data packet
 						duplicateDataPacket = true;
 						
-						if (blockNum == 0) currentBlockNumber += 65536; // Restore block number since packet was a duplicate
+						currentBlockNumber += 65536; // Restore block number since packet was a duplicate
 					}
 					else {
 						// BlockNumber cannot be explained by duplicate or delayed packet, so it is an error.
@@ -255,7 +255,7 @@ public class Client {
 			{
 				try{
 					out.write(dataBlock);
-					System.out.println("Writing datablock with block#: " + blockNum + " to file.");
+					
 				}
 				catch(IOException e){ //disk full
 					String msg = "Unable to write file " +filename+", disk space full";
@@ -430,6 +430,7 @@ public class Client {
 			if (blockNum != currentBlockNumber) {
 				
 				if (blockNum == 0) {
+					
 					currentBlockNumber -= 65536;
 				}
 				
@@ -440,7 +441,7 @@ public class Client {
 					{
 						//received duplicate data packet
 						duplicateACKPacket = true;
-						//currentBlockNumber += 65536; // Restore block number since packet was a duplicate
+						currentBlockNumber += 65536; // Restore block number since packet was a duplicate
 					}
 					else {
 						// Send ErrorPacket with error code 04 and stop transfer.

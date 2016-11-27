@@ -309,13 +309,13 @@ public class ServerThread extends Thread{
 			
 			duplicateACKPacket = false; // Set to false, so next loop will continue transferring properly if next ACK isn't also duplicate.
 			
-			System.out.println("Current Block Number: " + currentBlockNumber);
-			System.out.println("Received Block Number: " + blockNum);
+			//System.out.println("Current Block Number: " + currentBlockNumber);
+			//System.out.println("Received Block Number: " + blockNum);
 			
 			if (blockNum != currentBlockNumber) {
 				
-				if (blockNum < 0) {
-					blockNum += 65536; // If the block rolls over (it's a 16 bit number represented as unsigned)
+				if (blockNum == 0) {
+				
 					currentBlockNumber -= 65536;
 				}
 				 // If they're still not equal, another problem occurred.
@@ -325,6 +325,7 @@ public class ServerThread extends Thread{
 					{
 						//received duplicate data packet
 						duplicateACKPacket = true;
+						currentBlockNumber += 65536;
 					}
 					else {
 						// Send ErrorPacket with error code 04 and stop transfer.
@@ -470,6 +471,7 @@ public class ServerThread extends Thread{
 			if (blockNum != currentBlockNumber) {
 				
 				if (blockNum == 0) {
+					
 					currentBlockNumber -= 65536;
 				}
 				
@@ -480,7 +482,7 @@ public class ServerThread extends Thread{
 					{
 						//received duplicate data packet
 						duplicateDataPacket = true;
-						//currentBlockNumber += 65536; // Restore block number since packet was a duplicate
+						currentBlockNumber += 65536; // Restore block number since packet was a duplicate
 					}
 					else {
 						// Send ErrorPacket with error code 04 and stop transfer.
