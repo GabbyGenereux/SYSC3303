@@ -4,6 +4,7 @@ import java.net.DatagramSocket;
 import java.net.InetAddress;
 import java.net.SocketException;
 import java.net.SocketTimeoutException;
+import java.util.Arrays;
 import java.util.Scanner;
 import java.util.concurrent.TimeUnit;
 
@@ -103,6 +104,11 @@ public class IntermediateHost {
 		// Drop packet
 		if (mode == 1) {
 			System.out.println("Dropping packet...");
+			byte[] opcode = {data[0], data[1]};
+			// If a request is dropped, need to reset.
+			if (Arrays.equals(opcode, RequestPacket.readOpcode) || Arrays.equals(opcode, RequestPacket.writeOpcode)){
+				mode = -1;
+			}
 			// Do nothing (packet dropped)
 		}
 		// Delay packet
