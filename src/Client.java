@@ -485,13 +485,17 @@ public class Client {
 		//receive final ACK
 		while(!finalReceived)
 		{
+			finalReceived = true;
 			byte[] data = new byte[bufferSize];
-			receivePacket = new DatagramPacket(data, data.length);	
+			receivePacket = new DatagramPacket(data, data.length);
 			if(!packetReceiveWithTimeout(sendAndReceiveSocket, receivePacket, sendPacket))
 			{
 				in.close();
 				return;
 			}
+			receivedData = Arrays.copyOf(receivePacket.getData(), receivePacket.getLength());
+			AckPacket ap = new AckPacket(receivedData);
+			blockNum = ap.getBlockNum();
 			if (blockNum != currentBlockNumber) 
 			{
 				if (blockNum == 0) {
@@ -503,6 +507,7 @@ public class Client {
 					if(currentBlockNumber > blockNum)
 					{
 						//received duplicate data packet
+						System.out.println("duplicate received");
 						finalReceived = false;
 						if (blockNum == 0) currentBlockNumber += 65536;// Restore block number since packet was a duplicate
 					}
@@ -515,11 +520,7 @@ public class Client {
 						return;
 					}
 				}
-				else
-					finalReceived = true;
 			}
-			else
-				finalReceived = true;
 			
 			if(!receivePacket.getAddress().equals(serverAddress) || receivePacket.getPort() != serverPort)
 			{
@@ -528,6 +529,7 @@ public class Client {
 				DatagramPacket errPkt = new DatagramPacket(ep.encode(), ep.encode().length, receivePacket.getAddress(), receivePacket.getPort());
 				sendAndReceiveSocket.send(errPkt);
 				TFTPInfoPrinter.printSent(errPkt);
+				finalReceived = false;
 			}
 			TFTPInfoPrinter.printReceived(receivePacket);
 		}
