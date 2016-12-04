@@ -565,17 +565,17 @@ public class Client {
 		}
 
 		System.out.println("Now enter the IP address of the TFTP server (x.x.x.x):");
-		String address = s.nextLine();
+		String address;
 		boolean notValid = true;
 		while(notValid)
 		{
 			notValid = false;
+			address = s.nextLine();
 			try {
 				inputServerAddress = InetAddress.getByName(address);
 			} catch (UnknownHostException e1) {
-				System.out.println("Invalid format, try again (x.x.x.x):");
+				System.out.println("Invalid address, try again (x.x.x.x):");
 				notValid = true;
-				e1.printStackTrace();
 			}
 		}
 		
@@ -586,17 +586,16 @@ public class Client {
 			if (fileName.equals("server"))
 			{
 				System.out.println("Now enter the IP address of the TFTP server (x.x.x.x):");
-				address = s.nextLine();
 				notValid = true;
 				while(notValid)
 				{
 					notValid = false;
+					address = s.nextLine();
 					try {
 						inputServerAddress = InetAddress.getByName(address);
 					} catch (UnknownHostException e1) {
-						System.out.println("Invalid format, try again (x.x.x.x):");
+						System.out.println("Invalid address, try again (x.x.x.x):");
 						notValid = true;
-						e1.printStackTrace();
 					}
 				}
 				continue;
