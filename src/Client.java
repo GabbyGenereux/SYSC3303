@@ -20,7 +20,7 @@ public class Client {
 	private int wellKnownPort;
 	private DatagramPacket sendPacket, receivePacket;
 	private DatagramSocket sendAndReceiveSocket;
-	private InetAddress inputServerAddress;
+	private static InetAddress inputServerAddress;
 	
 	public boolean isTestMode() {
 		return testMode;
@@ -563,12 +563,44 @@ public class Client {
 		else if (response.equals("n")) {
 			TFTPInfoPrinter.setVerboseMode(true);
 		}
+
+		System.out.println("Now enter the IP address of the TFTP server (x.x.x.x):");
+		String address = s.nextLine();
+		boolean notValid = true;
+		while(notValid)
+		{
+			notValid = false;
+			try {
+				inputServerAddress = InetAddress.getByName(address);
+			} catch (UnknownHostException e1) {
+				System.out.println("Invalid format, try again (x.x.x.x):");
+				notValid = true;
+				e1.printStackTrace();
+			}
+		}
 		
 		while (true) {
-			System.out.println("Please enter in the file name (or \"shutdown\" to exit):");
+			System.out.println("Please enter in the file name (\"shutdown\" to exit, \"server\" to change server IP):");
 			String fileName = s.nextLine();
 			if (fileName.equals("shutdown")) break;
-			
+			if (fileName.equals("server"))
+			{
+				System.out.println("Now enter the IP address of the TFTP server (x.x.x.x):");
+				address = s.nextLine();
+				notValid = true;
+				while(notValid)
+				{
+					notValid = false;
+					try {
+						inputServerAddress = InetAddress.getByName(address);
+					} catch (UnknownHostException e1) {
+						System.out.println("Invalid format, try again (x.x.x.x):");
+						notValid = true;
+						e1.printStackTrace();
+					}
+				}
+				continue;
+			}
 			System.out.println("Read or Write? (r/w)");
 			String action = s.nextLine().toLowerCase();
 			
