@@ -37,16 +37,18 @@ public class IntermediateHost {
 	public void receiveAndSend() throws Exception
 	{
 		int clientPort = -1, serverPort = 69;
+		InetAddress clientAddress;
 		HostInput errorModeCommand = new HostInput("Host Input Handler", this);
 		errorModeCommand.start();
 		
 		byte[] data = new byte[516];
 		
-		
+		//the host will always receive a packet from the client first
 		DatagramPacket p = new DatagramPacket(data, data.length);
 		receiveSocket.receive(p);
 		
 		clientPort = p.getPort();
+		clientAddress = p.getAddress();
 		TFTPInfoPrinter.printReceived(p);
 		
 		while (true) {
@@ -56,10 +58,12 @@ public class IntermediateHost {
 			// from client
 			if (p.getPort() == clientPort) {
 				port = serverPort;
+				addr = InetAddress.getLocalHost();
 			}
 			// from server
 			else if (p.getPort() == serverPort) {
 				port = clientPort;
+				addr = clientAddress;
 			}
 			if (mode != 0 && isTargetPacket(p.getData())) {
 				sendSpecially(p.getData(), p.getLength(), addr, port);

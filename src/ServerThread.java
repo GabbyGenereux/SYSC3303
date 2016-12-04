@@ -290,7 +290,7 @@ public class ServerThread extends Thread{
 			else if (!Arrays.equals(opcode, AckPacket.opcode)) {
 				// Send ErrorPacket with error code 04 and stop transfer.
 				ErrorPacket ep = new ErrorPacket((byte)4, "Was expecting a ACK packet.");
-				sendReceiveSocket.send(new DatagramPacket(ep.encode(), ep.encode().length, InetAddress.getLocalHost(), receivePacket.getPort()));
+				sendReceiveSocket.send(new DatagramPacket(ep.encode(), ep.encode().length, receivePacket.getAddress(), receivePacket.getPort()));
 				in.close();
 				return;
 			}
@@ -300,7 +300,7 @@ public class ServerThread extends Thread{
 			if (!AckPacket.isValid(dataReceived)) {
 				// Send ErrorPacket with error code 04 and stop transfer.
 				ErrorPacket ep = new ErrorPacket((byte)4, "ACK packet was malformed.");
-				sendReceiveSocket.send(new DatagramPacket(ep.encode(), ep.encode().length, InetAddress.getLocalHost(), receivePacket.getPort()));
+				sendReceiveSocket.send(new DatagramPacket(ep.encode(), ep.encode().length, receivePacket.getAddress(), receivePacket.getPort()));
 				in.close();
 				return;
 			}
@@ -331,7 +331,7 @@ public class ServerThread extends Thread{
 					else {
 						// Send ErrorPacket with error code 04 and stop transfer.
 						ErrorPacket ep = new ErrorPacket((byte)4, "ACK packet block number not in sequence or duplicate.");
-						sendReceiveSocket.send(new DatagramPacket(ep.encode(), ep.encode().length, InetAddress.getLocalHost(), receivePacket.getPort()));
+						sendReceiveSocket.send(new DatagramPacket(ep.encode(), ep.encode().length, receivePacket.getAddress(), receivePacket.getPort()));
 						in.close();
 						return;
 					}
@@ -399,7 +399,7 @@ public class ServerThread extends Thread{
 				byte[] ack = ap.encode();
 				
 				// Initial request was sent to wellKnownPort, but steady state file transfer should happen on another port.
-				sendPacket = new DatagramPacket(ack, ack.length, InetAddress.getLocalHost(), receivePacket.getPort());
+				sendPacket = new DatagramPacket(ack, ack.length, receivePacket.getAddress(), receivePacket.getPort());
 				if(!packetSendWithTimeout(sendReceiveSocket, sendPacket))
 				{
 					out.close();
@@ -455,7 +455,7 @@ public class ServerThread extends Thread{
 			else if (!Arrays.equals(opcode, DataPacket.opcode)) {
 				// Send ErrorPacket with error code 04 and stop transfer.
 				ErrorPacket ep = new ErrorPacket((byte)4, "Was expecting DATA packet.");
-				sendReceiveSocket.send(new DatagramPacket(ep.encode(), ep.encode().length, InetAddress.getLocalHost(), receivePacket.getPort()));
+				sendReceiveSocket.send(new DatagramPacket(ep.encode(), ep.encode().length, receivePacket.getAddress(), receivePacket.getPort()));
 				out.close();
 				return;
 			}
@@ -463,7 +463,7 @@ public class ServerThread extends Thread{
 			if (!DataPacket.isValid(receivedData)) {
 				// Send ErrorPacket with error code 04 and stop transfer.
 				ErrorPacket ep = new ErrorPacket((byte)4, "DATA packet was malformed.");
-				sendReceiveSocket.send(new DatagramPacket(ep.encode(), ep.encode().length, InetAddress.getLocalHost(), receivePacket.getPort()));
+				sendReceiveSocket.send(new DatagramPacket(ep.encode(), ep.encode().length, receivePacket.getAddress(), receivePacket.getPort()));
 				out.close();
 				return;
 			}
@@ -490,7 +490,7 @@ public class ServerThread extends Thread{
 					else {
 						// Send ErrorPacket with error code 04 and stop transfer.
 						ErrorPacket ep = new ErrorPacket((byte)4, "DATA packet block number not in sequence or duplicate.");
-						sendReceiveSocket.send(new DatagramPacket(ep.encode(), ep.encode().length, InetAddress.getLocalHost(), receivePacket.getPort()));
+						sendReceiveSocket.send(new DatagramPacket(ep.encode(), ep.encode().length, receivePacket.getAddress(), receivePacket.getPort()));
 						out.close();
 						return;
 					}
@@ -551,7 +551,7 @@ public class ServerThread extends Thread{
 		byte[] ack = ap.encode();
 		
 		// Initial request was sent to wellKnownPort, but steady state file transfer should happen on another port.
-		sendPacket = new DatagramPacket(ack, ack.length, InetAddress.getLocalHost(), receivePacket.getPort());
+		sendPacket = new DatagramPacket(ack, ack.length, receivePacket.getAddress(), receivePacket.getPort());
 		if(!packetSendWithTimeout(sendReceiveSocket, sendPacket))
 		{
 			out.close();
