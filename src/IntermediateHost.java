@@ -180,6 +180,14 @@ public class IntermediateHost {
 			}
 			else if(corruptSeg == 5){
 				//increase data packet size
+				byte[] data2 = new byte[length+1];
+				for(int i = 0; i < length; i++){
+					data2[i] = data[i];
+				}
+				data2[length - 1] = 1;
+				data2[length] = 0;
+				data = data2;
+				length++;
 			}
 			
 			try {
