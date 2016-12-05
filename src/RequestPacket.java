@@ -29,14 +29,20 @@ public class RequestPacket {
 		}
 		
 		if (i == 2) return false; // Filename must be have characters.
-		
+		int j = 0;
 		try {
-			for (i++; data[i] != 0; i++) {
+			for (j = i + 1; data[j] != 0; j++) {
 				
 			}
 		} catch (ArrayIndexOutOfBoundsException e) {
 			return false; // 0 byte was not found.
 		}
+		byte[] buf = new byte[data.length];
+		System.arraycopy(data, i+1, buf, 0, j - (i + 1));
+		String mode = new String(Arrays.copyOf(buf,  j - (i + 1)));
+		
+		// Make sure mode is valid.
+		if (!mode.toLowerCase().equals("octet") && !mode.toLowerCase().equals("netascii")) return false;
 		
 		return true;
 	}
@@ -89,4 +95,5 @@ public class RequestPacket {
 	public byte[] encode() {
 		return data;
 	}
+	
 }
