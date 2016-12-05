@@ -14,7 +14,7 @@ import java.util.Arrays;
 import java.util.Scanner;
 
 public class Client {
-	private static final int bufferSize = 516;
+	private static final int bufferSize = 550;
 	private static final int blockSize = 512;
 	private boolean testMode = false;
 	private int wellKnownPort;
@@ -174,7 +174,6 @@ public class Client {
 				continue;
 			}
 			TFTPInfoPrinter.printReceived(receivePacket);
-			
 			// validate packet
 			receivedData = Arrays.copyOf(receivePacket.getData(), receivePacket.getLength());
 			receivedOpcode = Arrays.copyOf(receivedData, 2);
@@ -216,7 +215,16 @@ public class Client {
 				return;
 			}
 			DataPacket dp = new DataPacket(receivedData);
-			
+
+			if(dp.getDataBlock().length > 512)
+			{
+				// Send ErrorPacket with error code 04 and stop transfer.
+				System.err.println("DATA packet contained too many bytes in the block, likely corrupted.");
+				ErrorPacket ep = new ErrorPacket((byte)4, "DATA packet contained too many bytes in the block, likely corrupted.");
+				sendAndReceiveSocket.send(new DatagramPacket(ep.encode(), ep.encode().length, receivePacket.getAddress(), receivePacket.getPort()));
+				out.close();
+				return;
+			}
 			int blockNum = dp.getBlockNum();
 			//System.out.println("Received block of data, Block#: " + currentBlockNumber);
 			duplicateDataPacket = false;
