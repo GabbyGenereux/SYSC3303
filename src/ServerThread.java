@@ -14,7 +14,7 @@ import java.util.Arrays;
 
 
 public class ServerThread extends Thread{
-	private static final int bufferSize = 516;
+	private static final int bufferSize = 550;
 	private static final int blockSize = 512;
 	
 	private DatagramPacket receivePacket, sendPacket;
@@ -468,6 +468,15 @@ public class ServerThread extends Thread{
 				return;
 			}
 			DataPacket dp = new DataPacket(receivedData);
+			if(dp.getDataBlock().length > 512)
+			{
+				// Send ErrorPacket with error code 04 and stop transfer.
+				System.err.println("DATA packet contained too many bytes in the block, likely corrupted.");
+				ErrorPacket ep = new ErrorPacket((byte)4, "DATA packet contained too many bytes in the block, likely corrupted.");
+				sendReceiveSocket.send(new DatagramPacket(ep.encode(), ep.encode().length, receivePacket.getAddress(), receivePacket.getPort()));
+				out.close();
+				return;
+			}
 			int blockNum = dp.getBlockNum();
 
 			duplicateDataPacket = false;
