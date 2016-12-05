@@ -262,7 +262,7 @@ public class ServerThread extends Thread{
 				
 			if(!receivePacket.getAddress().equals(clientAddress) || receivePacket.getPort() != clientPort)
 			{
-				System.err.println("Packet from unknown address or port, discarding.");
+				System.err.println("Packet from unknown address or port. "+ "Address: " + receivePacket.getAddress() + "Port: " + receivePacket.getPort() + " discarding.");
 				
 				ErrorPacket ep = new ErrorPacket((byte)5, "Packet from unknown address or port, discarding.");
 				DatagramPacket errPkt = new DatagramPacket(ep.encode(), ep.encode().length, receivePacket.getAddress(), receivePacket.getPort());
@@ -427,7 +427,7 @@ public class ServerThread extends Thread{
 									
 			if(!receivePacket.getAddress().equals(clientAddress) || receivePacket.getPort() != clientPort)
 			{
-				System.err.println("Packet from unknown address or port, discarding.");
+				System.err.println("Packet from unknown address or port. "+ "Address: " + receivePacket.getAddress() + "Port: " + receivePacket.getPort() + " discarding.");
 				// Reuse duplicate packet logic to prevent incrementing block number.
 				ErrorPacket ep = new ErrorPacket((byte)5, "Packet from unknown address or port, discarding.");
 				DatagramPacket errPkt = new DatagramPacket(ep.encode(), ep.encode().length, receivePacket.getAddress(), receivePacket.getPort());
@@ -537,8 +537,6 @@ public class ServerThread extends Thread{
 					return;
 				}
 			}
-			
-			
 			
 			// check if block is < 512 bytes which signifies end of file
 			if (dataBlock.length < 512) {

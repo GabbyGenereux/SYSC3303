@@ -241,7 +241,7 @@ public class Client {
 						// BlockNumber cannot be explained by duplicate or delayed packet, so it is an error.
 						// Send error code 04 and stop transfer
 						ErrorPacket ep = new ErrorPacket((byte)4, "DATA block number not in sequence or duplicate.");
-						System.err.println("DATA block number not in sequence or duplicate.");
+						System.err.println("DATA block number " + blockNum +" not in sequence or duplicate.");
 						sendAndReceiveSocket.send(new DatagramPacket(ep.encode(), ep.encode().length, receivePacket.getAddress(), receivePacket.getPort()));
 						out.close();
 						return;
@@ -378,7 +378,7 @@ public class Client {
 						
 			if(!receivePacket.getAddress().equals(serverAddress) || receivePacket.getPort() != serverPort)
 			{
-				System.err.println("Packet from unknown address or port, discarding.");
+				System.err.println("Packet from unknown address or port." + "Address: " + receivePacket.getAddress() + "Port: " + receivePacket.getPort() + ", discarding.");
 				ErrorPacket ep = new ErrorPacket((byte)5, "Packet from unknown address or port, discarding.");
 				DatagramPacket errPkt = new DatagramPacket(ep.encode(), ep.encode().length, receivePacket.getAddress(), receivePacket.getPort());
 				sendAndReceiveSocket.send(errPkt);
@@ -446,7 +446,7 @@ public class Client {
 					else {
 						// Send ErrorPacket with error code 04 and stop transfer.
 						ErrorPacket ep = new ErrorPacket((byte)4, "ACK packet was not in sequence or duplicate.");
-						System.err.println("ACK packet was not in sequence or duplicate.");
+						System.err.println("ACK packet" + blockNum + " was not in sequence or duplicate.");
 						sendAndReceiveSocket.send(new DatagramPacket(ep.encode(), ep.encode().length, receivePacket.getAddress(), receivePacket.getPort()));
 						in.close();
 						return;
@@ -514,7 +514,7 @@ public class Client {
 					else {
 						// Send ErrorPacket with error code 04 and stop transfer.
 						ErrorPacket ep = new ErrorPacket((byte)4, "ACK packet was not in sequence or duplicate.");
-						System.err.println("ACK packet was not in sequence or duplicate.");
+						System.err.println("ACK packet "+ blockNum + "was not in sequence or duplicate.");
 						sendAndReceiveSocket.send(new DatagramPacket(ep.encode(), ep.encode().length, receivePacket.getAddress(), receivePacket.getPort()));
 						in.close();
 						return;
@@ -524,7 +524,7 @@ public class Client {
 			
 			if(!receivePacket.getAddress().equals(serverAddress) || receivePacket.getPort() != serverPort)
 			{
-				System.err.println("Packet from unknown address or port, discarding.");
+				System.err.println("Packet from unknown address or port. " +"Address: "+receivePacket.getAddress() + "Port: " +receivePacket.getPort() + "discarding.");
 				ErrorPacket ep = new ErrorPacket((byte)5, "Packet from unknown address or port, discarding.");
 				DatagramPacket errPkt = new DatagramPacket(ep.encode(), ep.encode().length, receivePacket.getAddress(), receivePacket.getPort());
 				sendAndReceiveSocket.send(errPkt);
