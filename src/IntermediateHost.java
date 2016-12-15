@@ -37,18 +37,16 @@ public class IntermediateHost {
 	public void receiveAndSend() throws Exception
 	{
 		int clientPort = -1, serverPort = 69;
-		InetAddress clientAddress;
 		HostInput errorModeCommand = new HostInput("Host Input Handler", this);
 		errorModeCommand.start();
 		
 		byte[] data = new byte[516];
 		
-		//the host will always receive a packet from the client first
+		
 		DatagramPacket p = new DatagramPacket(data, data.length);
 		receiveSocket.receive(p);
 		
 		clientPort = p.getPort();
-		clientAddress = p.getAddress();
 		TFTPInfoPrinter.printReceived(p);
 		
 		while (true) {
@@ -58,12 +56,10 @@ public class IntermediateHost {
 			// from client
 			if (p.getPort() == clientPort) {
 				port = serverPort;
-				addr = InetAddress.getLocalHost();
 			}
 			// from server
 			else if (p.getPort() == serverPort) {
 				port = clientPort;
-				addr = clientAddress;
 			}
 			if (mode != 0 && isTargetPacket(p.getData())) {
 				sendSpecially(p.getData(), p.getLength(), addr, port);
@@ -164,31 +160,6 @@ public class IntermediateHost {
 				//change end 0 byte to a value
 				data[length - 1] = 1;
 			}
-			else if(corruptSeg == 4){
-				//corrupt mode
-				RequestPacket rp = new RequestPacket(data);
-				String file = rp.getFilename();
-				String newMode = "Pizza";
-				if(data[1] == 1){
-					rp = new RequestPacket(RequestPacket.readOpcode, file, newMode);
-					data = rp.encode();
-				}
-				else if(data[1] == 2){
-					rp = new RequestPacket(RequestPacket.writeOpcode, file, newMode);
-					data = rp.encode();
-				}
-			}
-			else if(corruptSeg == 5){
-				//increase data packet size
-				byte[] data2 = new byte[length+1];
-				for(int i = 0; i < length; i++){
-					data2[i] = data[i];
-				}
-				data2[length - 1] = 1;
-				data2[length] = 0;
-				data = data2;
-				length++;
-			}
 			
 			try {
 				// May or may not be necessary.
@@ -244,7 +215,7 @@ public class IntermediateHost {
 		if(m < 4){
 			mode = m;
 		}
-		else if(m == 9){
+		else if(m == 7){
 			mode = 5;
 		}
 		else{

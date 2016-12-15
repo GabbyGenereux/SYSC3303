@@ -28,13 +28,7 @@ public class HostInput extends Thread
 				// leave default values.
 			}
 			else if(mode != 0){
-				String type;
-				if(mode == 8){
-					type = "DATA";
-				}
-				else{
-					type = getPacketType(mode);
-				}
+				String type = getPacketType();
 				byte[] num = null;
 				byte[] newByte = null;
 				if(type.equals("ACK") || type.equals("DATA")){
@@ -68,9 +62,7 @@ public class HostInput extends Thread
 	private int getModeNumber(){
 		int mode = -1;
 		System.out.println("Enter Error Simulator mode:");
-		System.out.println("\t0 : normal operation\n\t1 : lose a packet\n\t2 : delay a packet\n\t3 : duplicate a packet\n\t"
-				+ "4 : change packet opcode\n\t5 : change packet block number\n\t6 : replace a zero byte\n\t7 : corrupt mode\n\t"
-				+ "8 : increase data packet size\n\t9 : change port during transfer\n\tr : reset for next transfer");
+		System.out.println("\t0 : normal operation\n\t1 : lose a packet\n\t2 : delay a packet\n\t3 : duplicate a packet\n\t4 : change packet opcode\n\t5 : change packet block number\n\t6 : replace a zero byte\n\t7 : change port during transfer\n\tr : reset for next transfer");
 		do{
 			String m = s.nextLine();
 			
@@ -81,7 +73,7 @@ public class HostInput extends Thread
 			}
 			try{
 				mode = Integer.parseInt(m);
-				if(mode < 0 || mode > 9){
+				if(mode < 0 || mode > 7){
 					System.err.println("Not a mode number");
 				}
 			}
@@ -89,40 +81,20 @@ public class HostInput extends Thread
 				System.err.println("Not a mode number");
 			}
 			
-		}while(mode < 0 || mode > 9);
+		}while(mode < 0 || mode > 7);
 		return mode;
 	}
 	
-	private String getPacketType(int mode){
+	private String getPacketType(){
 		String type = "";
 		System.out.println("Enter Packet type to trigger error:");
-		if(mode == 7 || mode == 6){
-			System.out.println("Packets: RRQ, WRQ");
-			do{
-				type = s.nextLine().toUpperCase();
-				if(!type.equals("RRQ") && !type.equals("WRQ")){
-					System.err.println("Not a valid packet type");
-				}
-			}while(!type.equals("RRQ") && !type.equals("WRQ"));
-		}
-		else if(mode == 5){
-				System.out.println("Packets: ACK, DATA");
-				do{
-					type = s.nextLine().toUpperCase();
-					if(!type.equals("ACK") && !type.equals("DATA")){
-						System.err.println("Not a valid packet type");
-					}
-				}while(!type.equals("ACK") && !type.equals("DATA"));
+		System.out.println("Packets: RRQ, WRQ, ACK, DATA");
+		do{
+			type = s.nextLine().toUpperCase();
+			if(!type.equals("RRQ") && !type.equals("WRQ") && !type.equals("ACK") && !type.equals("DATA")){
+				System.err.println("Not a valid packet type");
 			}
-		else{
-			System.out.println("Packets: RRQ, WRQ, ACK, DATA, ERROR");
-			do{
-				type = s.nextLine().toUpperCase();
-				if(!type.equals("RRQ") && !type.equals("WRQ") && !type.equals("ACK") && !type.equals("DATA") && !type.equals("ERROR")){
-					System.err.println("Not a valid packet type");
-				}
-			}while(!type.equals("RRQ") && !type.equals("WRQ") && !type.equals("ACK") && !type.equals("DATA") && !type.equals("ERROR"));
-		}
+		}while(!type.equals("RRQ") && !type.equals("WRQ") && !type.equals("ACK") && !type.equals("DATA"));
 		return type;
 	}
 	
@@ -206,9 +178,6 @@ public class HostInput extends Thread
 		case "ACK":
 			code[1] = 4;
 			break;	
-		case "ERROR":
-			code[1] = 5;
-			break;
 		}
 		return code;
 	}

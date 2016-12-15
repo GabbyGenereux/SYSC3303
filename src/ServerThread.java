@@ -14,7 +14,7 @@ import java.util.Arrays;
 
 
 public class ServerThread extends Thread{
-	private static final int bufferSize = 550;
+	private static final int bufferSize = 516;
 	private static final int blockSize = 512;
 	
 	private DatagramPacket receivePacket, sendPacket;
@@ -262,7 +262,7 @@ public class ServerThread extends Thread{
 				
 			if(!receivePacket.getAddress().equals(clientAddress) || receivePacket.getPort() != clientPort)
 			{
-				System.err.println("Packet from unknown address or port. "+ "Address: " + receivePacket.getAddress() + "Port: " + receivePacket.getPort() + " discarding.");
+				System.err.println("Packet from unknown address or port, discarding.");
 				
 				ErrorPacket ep = new ErrorPacket((byte)5, "Packet from unknown address or port, discarding.");
 				DatagramPacket errPkt = new DatagramPacket(ep.encode(), ep.encode().length, receivePacket.getAddress(), receivePacket.getPort());
@@ -290,7 +290,7 @@ public class ServerThread extends Thread{
 			else if (!Arrays.equals(opcode, AckPacket.opcode)) {
 				// Send ErrorPacket with error code 04 and stop transfer.
 				ErrorPacket ep = new ErrorPacket((byte)4, "Was expecting a ACK packet.");
-				sendReceiveSocket.send(new DatagramPacket(ep.encode(), ep.encode().length, receivePacket.getAddress(), receivePacket.getPort()));
+				sendReceiveSocket.send(new DatagramPacket(ep.encode(), ep.encode().length, InetAddress.getLocalHost(), receivePacket.getPort()));
 				in.close();
 				return;
 			}
@@ -300,7 +300,7 @@ public class ServerThread extends Thread{
 			if (!AckPacket.isValid(dataReceived)) {
 				// Send ErrorPacket with error code 04 and stop transfer.
 				ErrorPacket ep = new ErrorPacket((byte)4, "ACK packet was malformed.");
-				sendReceiveSocket.send(new DatagramPacket(ep.encode(), ep.encode().length, receivePacket.getAddress(), receivePacket.getPort()));
+				sendReceiveSocket.send(new DatagramPacket(ep.encode(), ep.encode().length, InetAddress.getLocalHost(), receivePacket.getPort()));
 				in.close();
 				return;
 			}
@@ -331,7 +331,7 @@ public class ServerThread extends Thread{
 					else {
 						// Send ErrorPacket with error code 04 and stop transfer.
 						ErrorPacket ep = new ErrorPacket((byte)4, "ACK packet block number not in sequence or duplicate.");
-						sendReceiveSocket.send(new DatagramPacket(ep.encode(), ep.encode().length, receivePacket.getAddress(), receivePacket.getPort()));
+						sendReceiveSocket.send(new DatagramPacket(ep.encode(), ep.encode().length, InetAddress.getLocalHost(), receivePacket.getPort()));
 						in.close();
 						return;
 					}
@@ -399,7 +399,7 @@ public class ServerThread extends Thread{
 				byte[] ack = ap.encode();
 				
 				// Initial request was sent to wellKnownPort, but steady state file transfer should happen on another port.
-				sendPacket = new DatagramPacket(ack, ack.length, receivePacket.getAddress(), receivePacket.getPort());
+				sendPacket = new DatagramPacket(ack, ack.length, InetAddress.getLocalHost(), receivePacket.getPort());
 				if(!packetSendWithTimeout(sendReceiveSocket, sendPacket))
 				{
 					out.close();
@@ -427,7 +427,7 @@ public class ServerThread extends Thread{
 									
 			if(!receivePacket.getAddress().equals(clientAddress) || receivePacket.getPort() != clientPort)
 			{
-				System.err.println("Packet from unknown address or port. "+ "Address: " + receivePacket.getAddress() + "Port: " + receivePacket.getPort() + " discarding.");
+				System.err.println("Packet from unknown address or port, discarding.");
 				// Reuse duplicate packet logic to prevent incrementing block number.
 				ErrorPacket ep = new ErrorPacket((byte)5, "Packet from unknown address or port, discarding.");
 				DatagramPacket errPkt = new DatagramPacket(ep.encode(), ep.encode().length, receivePacket.getAddress(), receivePacket.getPort());
@@ -455,7 +455,7 @@ public class ServerThread extends Thread{
 			else if (!Arrays.equals(opcode, DataPacket.opcode)) {
 				// Send ErrorPacket with error code 04 and stop transfer.
 				ErrorPacket ep = new ErrorPacket((byte)4, "Was expecting DATA packet.");
-				sendReceiveSocket.send(new DatagramPacket(ep.encode(), ep.encode().length, receivePacket.getAddress(), receivePacket.getPort()));
+				sendReceiveSocket.send(new DatagramPacket(ep.encode(), ep.encode().length, InetAddress.getLocalHost(), receivePacket.getPort()));
 				out.close();
 				return;
 			}
@@ -463,20 +463,11 @@ public class ServerThread extends Thread{
 			if (!DataPacket.isValid(receivedData)) {
 				// Send ErrorPacket with error code 04 and stop transfer.
 				ErrorPacket ep = new ErrorPacket((byte)4, "DATA packet was malformed.");
-				sendReceiveSocket.send(new DatagramPacket(ep.encode(), ep.encode().length, receivePacket.getAddress(), receivePacket.getPort()));
+				sendReceiveSocket.send(new DatagramPacket(ep.encode(), ep.encode().length, InetAddress.getLocalHost(), receivePacket.getPort()));
 				out.close();
 				return;
 			}
 			DataPacket dp = new DataPacket(receivedData);
-			if(dp.getDataBlock().length > 512)
-			{
-				// Send ErrorPacket with error code 04 and stop transfer.
-				System.err.println("DATA packet contained too many bytes in the block, likely corrupted.");
-				ErrorPacket ep = new ErrorPacket((byte)4, "DATA packet contained too many bytes in the block, likely corrupted.");
-				sendReceiveSocket.send(new DatagramPacket(ep.encode(), ep.encode().length, receivePacket.getAddress(), receivePacket.getPort()));
-				out.close();
-				return;
-			}
 			int blockNum = dp.getBlockNum();
 
 			duplicateDataPacket = false;
@@ -499,7 +490,7 @@ public class ServerThread extends Thread{
 					else {
 						// Send ErrorPacket with error code 04 and stop transfer.
 						ErrorPacket ep = new ErrorPacket((byte)4, "DATA packet block number not in sequence or duplicate.");
-						sendReceiveSocket.send(new DatagramPacket(ep.encode(), ep.encode().length, receivePacket.getAddress(), receivePacket.getPort()));
+						sendReceiveSocket.send(new DatagramPacket(ep.encode(), ep.encode().length, InetAddress.getLocalHost(), receivePacket.getPort()));
 						out.close();
 						return;
 					}
@@ -547,6 +538,8 @@ public class ServerThread extends Thread{
 				}
 			}
 			
+			
+			
 			// check if block is < 512 bytes which signifies end of file
 			if (dataBlock.length < 512) {
 				break; 
@@ -558,7 +551,7 @@ public class ServerThread extends Thread{
 		byte[] ack = ap.encode();
 		
 		// Initial request was sent to wellKnownPort, but steady state file transfer should happen on another port.
-		sendPacket = new DatagramPacket(ack, ack.length, receivePacket.getAddress(), receivePacket.getPort());
+		sendPacket = new DatagramPacket(ack, ack.length, InetAddress.getLocalHost(), receivePacket.getPort());
 		if(!packetSendWithTimeout(sendReceiveSocket, sendPacket))
 		{
 			out.close();

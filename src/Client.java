@@ -14,14 +14,13 @@ import java.util.Arrays;
 import java.util.Scanner;
 
 public class Client {
-	private static final int bufferSize = 550;
+	private static final int bufferSize = 516;
 	private static final int blockSize = 512;
 	private boolean testMode = false;
 	private int wellKnownPort;
 	private DatagramPacket sendPacket, receivePacket;
 	private DatagramSocket sendAndReceiveSocket;
-	private static InetAddress inputServerAddress;
-	
+
 	public boolean isTestMode() {
 		return testMode;
 	}
@@ -104,7 +103,7 @@ public class Client {
 		RequestPacket p = new RequestPacket(reqType, filename, mode);
 		byte[] message = p.encode();
 		
-		DatagramPacket request = new DatagramPacket(message, message.length, inputServerAddress, wellKnownPort);
+		DatagramPacket request = new DatagramPacket(message, message.length, InetAddress.getLocalHost(), wellKnownPort);
 		boolean sent = false;
 		try {
 			sent = packetSendWithTimeout(sendAndReceiveSocket, request);
@@ -174,6 +173,7 @@ public class Client {
 				continue;
 			}
 			TFTPInfoPrinter.printReceived(receivePacket);
+			
 			// validate packet
 			receivedData = Arrays.copyOf(receivePacket.getData(), receivePacket.getLength());
 			receivedOpcode = Arrays.copyOf(receivedData, 2);
@@ -201,7 +201,7 @@ public class Client {
 				// Send ErrorPacket with error code 04 and stop transfer.
 				System.err.println("Was expecting a DATA packet.");
 				ErrorPacket ep = new ErrorPacket((byte)4, "Was expecting a DATA packet.");
-				sendAndReceiveSocket.send(new DatagramPacket(ep.encode(), ep.encode().length, receivePacket.getAddress(), receivePacket.getPort()));
+				sendAndReceiveSocket.send(new DatagramPacket(ep.encode(), ep.encode().length, InetAddress.getLocalHost(), receivePacket.getPort()));
 				out.close();
 				return;
 			}
@@ -210,21 +210,12 @@ public class Client {
 			if (!DataPacket.isValid(receivedData)) {
 				System.err.println("DATA packet was malformed");
 				ErrorPacket ep = new ErrorPacket((byte)4, "DATA packet was malformed.");
-				sendAndReceiveSocket.send(new DatagramPacket(ep.encode(), ep.encode().length, receivePacket.getAddress(), receivePacket.getPort()));
+				sendAndReceiveSocket.send(new DatagramPacket(ep.encode(), ep.encode().length, InetAddress.getLocalHost(), receivePacket.getPort()));
 				out.close();
 				return;
 			}
 			DataPacket dp = new DataPacket(receivedData);
-
-			if(dp.getDataBlock().length > 512)
-			{
-				// Send ErrorPacket with error code 04 and stop transfer.
-				System.err.println("DATA packet contained too many bytes in the block, likely corrupted.");
-				ErrorPacket ep = new ErrorPacket((byte)4, "DATA packet contained too many bytes in the block, likely corrupted.");
-				sendAndReceiveSocket.send(new DatagramPacket(ep.encode(), ep.encode().length, receivePacket.getAddress(), receivePacket.getPort()));
-				out.close();
-				return;
-			}
+			
 			int blockNum = dp.getBlockNum();
 			//System.out.println("Received block of data, Block#: " + currentBlockNumber);
 			duplicateDataPacket = false;
@@ -249,8 +240,8 @@ public class Client {
 						// BlockNumber cannot be explained by duplicate or delayed packet, so it is an error.
 						// Send error code 04 and stop transfer
 						ErrorPacket ep = new ErrorPacket((byte)4, "DATA block number not in sequence or duplicate.");
-						System.err.println("DATA block number " + blockNum +" not in sequence or duplicate.");
-						sendAndReceiveSocket.send(new DatagramPacket(ep.encode(), ep.encode().length, receivePacket.getAddress(), receivePacket.getPort()));
+						System.err.println("DATA block number not in sequence or duplicate.");
+						sendAndReceiveSocket.send(new DatagramPacket(ep.encode(), ep.encode().length, InetAddress.getLocalHost(), receivePacket.getPort()));
 						out.close();
 						return;
 					}
@@ -270,7 +261,7 @@ public class Client {
 					System.err.println(msg);
 					ErrorPacket errPckt = new ErrorPacket((byte) 3, msg);
 					byte[] err = errPckt.encode();
-					sendPacket = new DatagramPacket(err, err.length, receivePacket.getAddress(), receivePacket.getPort());
+					sendPacket = new DatagramPacket(err, err.length, InetAddress.getLocalHost(), receivePacket.getPort());
 					sendAndReceiveSocket.send(sendPacket);
 					if(!packetSendWithTimeout(sendAndReceiveSocket, sendPacket))
 					{
@@ -290,7 +281,7 @@ public class Client {
 			AckPacket ap = new AckPacket(blockNum);
 			
 			// Initial request was sent to wellKnownPort, but steady state file transfer should happen on another port.
-			sendPacket = new DatagramPacket(ap.encode(), ap.encode().length, receivePacket.getAddress(), receivePacket.getPort());
+			sendPacket = new DatagramPacket(ap.encode(), ap.encode().length, InetAddress.getLocalHost(), receivePacket.getPort());
 			if(!packetSendWithTimeout(sendAndReceiveSocket, sendPacket))
 			{
 				out.close();
@@ -318,7 +309,7 @@ public class Client {
 		byte[] receivedOpcode;
 		InetAddress serverAddress = null;
 		int serverPort = -1;
-		int blockNum;
+		
 		
 		try {
 			// It's a full path
@@ -386,7 +377,7 @@ public class Client {
 						
 			if(!receivePacket.getAddress().equals(serverAddress) || receivePacket.getPort() != serverPort)
 			{
-				System.err.println("Packet from unknown address or port." + "Address: " + receivePacket.getAddress() + "Port: " + receivePacket.getPort() + ", discarding.");
+				System.err.println("Packet from unknown address or port, discarding.");
 				ErrorPacket ep = new ErrorPacket((byte)5, "Packet from unknown address or port, discarding.");
 				DatagramPacket errPkt = new DatagramPacket(ep.encode(), ep.encode().length, receivePacket.getAddress(), receivePacket.getPort());
 				sendAndReceiveSocket.send(errPkt);
@@ -419,20 +410,20 @@ public class Client {
 				// Send ErrorPacket with error code 04 and stop transfer.
 				System.err.println("Was expecting an ACK, got unknown opcode instead");
 				ErrorPacket ep = new ErrorPacket((byte)4, "Was expecting a ACK packet.");
-				sendAndReceiveSocket.send(new DatagramPacket(ep.encode(), ep.encode().length, receivePacket.getAddress(), receivePacket.getPort()));
+				sendAndReceiveSocket.send(new DatagramPacket(ep.encode(), ep.encode().length, InetAddress.getLocalHost(), receivePacket.getPort()));
 				in.close();
 				return;
 			}
 			if (!AckPacket.isValid(receivedData)) {
 				System.err.println("ACK packet was malformed");
 				ErrorPacket ep = new ErrorPacket((byte)4, "ACK packet was malformed.");
-				sendAndReceiveSocket.send(new DatagramPacket(ep.encode(), ep.encode().length, receivePacket.getAddress(), receivePacket.getPort()));
+				sendAndReceiveSocket.send(new DatagramPacket(ep.encode(), ep.encode().length, InetAddress.getLocalHost(), receivePacket.getPort()));
 				in.close();
 				return;
 			}
 			AckPacket ap = new AckPacket(receivedData);
 			// need block number
-			blockNum = ap.getBlockNum();
+			int blockNum = ap.getBlockNum();
 			
 			duplicateACKPacket = false;
 			if (blockNum != currentBlockNumber) {
@@ -454,8 +445,8 @@ public class Client {
 					else {
 						// Send ErrorPacket with error code 04 and stop transfer.
 						ErrorPacket ep = new ErrorPacket((byte)4, "ACK packet was not in sequence or duplicate.");
-						System.err.println("ACK packet" + blockNum + " was not in sequence or duplicate.");
-						sendAndReceiveSocket.send(new DatagramPacket(ep.encode(), ep.encode().length, receivePacket.getAddress(), receivePacket.getPort()));
+						System.err.println("ACK packet was not in sequence or duplicate.");
+						sendAndReceiveSocket.send(new DatagramPacket(ep.encode(), ep.encode().length, InetAddress.getLocalHost(), receivePacket.getPort()));
 						in.close();
 						return;
 					}
@@ -477,7 +468,7 @@ public class Client {
 				DataPacket dp = new DataPacket(currentBlockNumber, dataBlock);
 				byte[] sendData = dp.encode();
 				// Initial request was sent to wellKnownPort, but steady state file transfer should happen on another port.
-				sendPacket = new DatagramPacket(sendData, sendData.length, receivePacket.getAddress(), receivePacket.getPort());
+				sendPacket = new DatagramPacket(sendData, sendData.length, InetAddress.getLocalHost(), receivePacket.getPort());
 				if(!packetSendWithTimeout(sendAndReceiveSocket, sendPacket))
 				{
 					in.close();
@@ -489,58 +480,27 @@ public class Client {
 			}
 			
 		}
-		boolean finalReceived = false;
 		//receive final ACK
-		while(!finalReceived)
+		byte[] data = new byte[bufferSize];
+		receivePacket = new DatagramPacket(data, data.length);	
+		if(!packetReceiveWithTimeout(sendAndReceiveSocket, receivePacket, sendPacket))
 		{
-			finalReceived = true;
-			byte[] data = new byte[bufferSize];
-			receivePacket = new DatagramPacket(data, data.length);
-			if(!packetReceiveWithTimeout(sendAndReceiveSocket, receivePacket, sendPacket))
-			{
-				in.close();
-				return;
-			}
-			receivedData = Arrays.copyOf(receivePacket.getData(), receivePacket.getLength());
-			AckPacket ap = new AckPacket(receivedData);
-			blockNum = ap.getBlockNum();
-			if (blockNum != currentBlockNumber) 
-			{
-				if (blockNum == 0) {
-					currentBlockNumber -= 65536;
-				}
-				 // If they're still not equal, another problem occurred.
-				if (blockNum != currentBlockNumber)
-				{
-					if(currentBlockNumber > blockNum)
-					{
-						//received duplicate data packet
-						System.out.println("duplicate received");
-						finalReceived = false;
-						if (blockNum == 0) currentBlockNumber += 65536;// Restore block number since packet was a duplicate
-					}
-					else {
-						// Send ErrorPacket with error code 04 and stop transfer.
-						ErrorPacket ep = new ErrorPacket((byte)4, "ACK packet was not in sequence or duplicate.");
-						System.err.println("ACK packet "+ blockNum + "was not in sequence or duplicate.");
-						sendAndReceiveSocket.send(new DatagramPacket(ep.encode(), ep.encode().length, receivePacket.getAddress(), receivePacket.getPort()));
-						in.close();
-						return;
-					}
-				}
-			}
-			
-			if(!receivePacket.getAddress().equals(serverAddress) || receivePacket.getPort() != serverPort)
-			{
-				System.err.println("Packet from unknown address or port. " +"Address: "+receivePacket.getAddress() + "Port: " +receivePacket.getPort() + "discarding.");
-				ErrorPacket ep = new ErrorPacket((byte)5, "Packet from unknown address or port, discarding.");
-				DatagramPacket errPkt = new DatagramPacket(ep.encode(), ep.encode().length, receivePacket.getAddress(), receivePacket.getPort());
-				sendAndReceiveSocket.send(errPkt);
-				TFTPInfoPrinter.printSent(errPkt);
-				finalReceived = false;
-			}
-			TFTPInfoPrinter.printReceived(receivePacket);
+			in.close();
+			return;
 		}
+		
+		if(!receivePacket.getAddress().equals(serverAddress) || receivePacket.getPort() != serverPort)
+		{
+			System.err.println("Packet from unknown address or port, discarding.");
+			ErrorPacket ep = new ErrorPacket((byte)5, "Packet from unknown address or port, discarding.");
+			DatagramPacket errPkt = new DatagramPacket(ep.encode(), ep.encode().length, receivePacket.getAddress(), receivePacket.getPort());
+			sendAndReceiveSocket.send(errPkt);
+			TFTPInfoPrinter.printSent(errPkt);
+			// Don't know what to do here.
+			// Need to still wait for final ACK...
+		}
+		TFTPInfoPrinter.printReceived(receivePacket);
+				
 		in.close();
 		System.out.println("Transfer complete");
 	}
@@ -573,43 +533,12 @@ public class Client {
 		else if (response.equals("n")) {
 			TFTPInfoPrinter.setVerboseMode(true);
 		}
-
-		System.out.println("Now enter the IP address of the TFTP server (x.x.x.x):");
-		String address;
-		boolean notValid = true;
-		while(notValid)
-		{
-			notValid = false;
-			address = s.nextLine();
-			try {
-				inputServerAddress = InetAddress.getByName(address);
-			} catch (UnknownHostException e1) {
-				System.out.println("Invalid address, try again (x.x.x.x):");
-				notValid = true;
-			}
-		}
 		
 		while (true) {
-			System.out.println("Please enter in the file name (\"shutdown\" to exit, \"server\" to change server IP):");
+			System.out.println("Please enter in the file name (or \"shutdown\" to exit):");
 			String fileName = s.nextLine();
 			if (fileName.equals("shutdown")) break;
-			if (fileName.equals("server"))
-			{
-				System.out.println("Now enter the IP address of the TFTP server (x.x.x.x):");
-				notValid = true;
-				while(notValid)
-				{
-					notValid = false;
-					address = s.nextLine();
-					try {
-						inputServerAddress = InetAddress.getByName(address);
-					} catch (UnknownHostException e1) {
-						System.out.println("Invalid address, try again (x.x.x.x):");
-						notValid = true;
-					}
-				}
-				continue;
-			}
+			
 			System.out.println("Read or Write? (r/w)");
 			String action = s.nextLine().toLowerCase();
 			

@@ -89,14 +89,12 @@ Setup:
  		TFTPInfoPrinter.class
 
 
-Note: the error simulator should be located on the same machine as the server.
-
 USAGE:
 In eclipse:
 1. Make sure the folder structure is as described above, If the ServerFiles and ClientFiles folders do not exist, make them according to the structure.
 2. Start the Server/Client/IntermediateHost
 3. Set up Server/Client/IntermediateHost
-3a. In the server console, select the verbosity by entering "verbose"/"v" for verbose mode or "quiet"/"q" for quiet mode. Then enter the server IP.
+3a. In the server console, select the verbosity by entering "verbose"/"v" for verbose mode or "quiet"/"q" for quiet mode. 
 3b. In IntermediateHost, select the verbosity in the same way as server. 
 	To perform an error simulation, enter 1 to lose a packet, 2 to delay a packet, 3 to duplicate a packet, 4 to change the opcode of a packet, 5 to change the block number of a packet, 6 to replace a zero byte and 7 to change the port of the transfer. Then, enter the type of packet to perform the error on, as well as the block number and delay between packets (if necessary). Entering a 0 when choosing an error performs normal operation.
 	When a simulation is over, enter "r" to reset the IntermediateHost for the next transfer. This must be done between transfers or else the client will not be able to connect through the IntermediateHost. 
